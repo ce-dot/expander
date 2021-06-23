@@ -2,6 +2,7 @@ module Base.Haskell
   ( module Control.Applicative
   , module Control.Arrow
   , module Control.Monad
+  , module Control.Monad.Fail
   , module Control.Monad.State
   , module Control.Monad.Trans
   , module Control.Monad.Trans.Maybe
@@ -16,6 +17,7 @@ module Base.Haskell
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.State
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe

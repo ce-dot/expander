@@ -60,7 +60,7 @@ git pull
 stack build
 ```
 
-## Important Folder ##
+## Important folders ##
 
 ### src ###
 Contains the source code.

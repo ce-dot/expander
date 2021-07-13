@@ -18,7 +18,7 @@ Follow the installation guide [here](http://docs.haskellstack.org/en/stable/inst
 
 ### Gtk+3 ###
 
-Official download page: [www.gtk.org/download](http://www.gtk.org/download/index.php)
+Download with Homebrew [here](https://formulae.brew.sh/formula/gtk+3)
 
 **Linux**
 Most Linux distributions already have Gtk+ installed. Often development packages are needed. Visit official download page for more information. For Debian/Ubuntu:

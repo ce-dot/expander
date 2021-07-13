@@ -18,7 +18,7 @@ Follow the installation guide [here](http://docs.haskellstack.org/en/stable/inst
 
 ### Gtk+3 ###
 
-Download with Homebrew [here](https://formulae.brew.sh/formula/gtk+3)
+Download with Homebrew [here](https://formulae.brew.sh/formula/gtk+3).
 
 **Linux**
 Most Linux distributions already have Gtk+ installed. Often development packages are needed. Visit official download page for more information. For Debian/Ubuntu:
@@ -27,7 +27,7 @@ $ apt install libgtk-3-dev
 ```
 
 **Mac**
-The [official download page](https://wiki.gnome.org/Projects/GTK+/OSX/Building) recommends to use jhbuild. [Homebrew](http://brew.sh/) is also known as a good alternative.
+The [official download page](https://wiki.gnome.org/Projects/GTK+/OSX/Building) recommends to use jhbuild (see also https://www.gtk.org/docs/installations/macos). [Homebrew](https://formulae.brew.sh/formula/gtk+3) is a good alternative.
 ```
 $ brew install gtk+3
 $ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig

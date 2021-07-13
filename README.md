@@ -27,7 +27,7 @@ $ apt install libgtk-3-dev
 ```
 
 **Mac**
-The [official download page](https://wiki.gnome.org/Projects/GTK+/OSX/Building) recommends to use jhbuild (see also https://www.gtk.org/docs/installations/macos). [Homebrew](https://formulae.brew.sh/formula/gtk+3) is a good alternative.
+The [official download page](https://wiki.gnome.org/Projects/GTK+/OSX/Building) recommends to use [jhbuild](https://wiki.gnome.org/Projects/Jhbuild/Mac_OS) (see also [GTK for Mac OS](https://www.gtk.org/docs/installations/macos). [Homebrew](https://formulae.brew.sh/formula/gtk+3) is a good alternative.
 ```
 $ brew install gtk+3
 $ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
@@ -44,7 +44,7 @@ stack exec -- pacman -S pkg-config mingw-w64-x86_64-gtk3 mingw-w64-x86_64-toolch
 ## Installation ##
 Install expander with:
 ```
-git clone https://github.com/jokusi/expander.git
+git clone https://github.com/petereu/expander.git
 cd expander
 stack build
 ```

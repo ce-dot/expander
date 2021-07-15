@@ -47,7 +47,7 @@ Verkaeufe -> branch[4..10] &
 
 terms:
 
-evalM(project[Artikelname,Kaeufer]$Verkaeufe) <+>		
-evalM(select(Gewicht>0.4)$Artikel) <+>
-evalM(njoin(Artikel)$Verkaeufe) <+>			-- big!
-evalM(tjoin(Name=Artikelname)(Artikel)$Verkaeufe)
+evalM$project[Artikelname,Kaeufer]$Verkaeufe <+>		
+evalM$select(Gewicht>0.4)$Artikel <+>
+evalM$njoin(Artikel)$Verkaeufe <+>			-- big!
+evalM$tjoin(Name=Artikelname)(Artikel)$Verkaeufe

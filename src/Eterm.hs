@@ -1,47 +1,35 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-|
-Module      : Eterm
-Description : Functions and parser for Term.
-Copyright   : (c) Peter Padawitz, June 2021
-                  Jos Kusiek, June 2021
+{-
+Module      : Eterm (update from July 1, 2021)
+Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
-Maintainer  : peter.padawitz@udo.edu
 Stability   : experimental
 Portability : portable
 
 Eterm contains:
 
     * basic functions on lists and other types
-
     * a parser of symbols and numbers
-
     * a parser of terms and formulas
-
     * a compiler of Kripke models
-
     * the tree type 'Term'
-
     * an unparser of terms and formulas
-
     * functions for flowtree analysis (used by the simplifier)
-
     * operations on formulas
-
     * operations on trees, tree positions and term graphs
-
     * substitution, unification and matching functions
-
     * a compiler of trees into trees with coordinates
-
     * functions that enumerate terms (used by the enumerator template)
 -}
+
 module Eterm where
 
 import Prelude ()
 import qualified Base.Haskell as Haskell
 import Base.System
-
 import Data.Array
+import Numeric (showFFloat)
+--import GHC.Float (double2Float)
 
 infixl 0 `onlyif`
 infixl 6 `minus`, `minus1`
@@ -54,11 +42,6 @@ infixr 4 ***, +++, -+-
 
 infix 4 `subset`, `eqset`
 
-infixl 9 &
-
-(&) :: a -> (a -> b) -> b 
-(&) = (Haskell.&)
-
 just :: Maybe a -> Bool
 just = Haskell.isJust
 
@@ -67,14 +50,6 @@ get = Haskell.fromJust
 
 nothing :: Maybe a -> Bool
 nothing = Haskell.isNothing
-
-{-
-getJust :: (a -> Maybe Int) -> [a] -> [Int]
-getJust f s = [i | Just i <- map f s]
-
-getJust2 :: ((a,a) -> (Maybe Int,Maybe Int)) -> BinRel a -> BinRel Int
-getJust2 f r = [(i,j) | (Just i,Just j) <- map f r]
--}
 
 onlyif :: String -> Bool -> String
 str `onlyif` b = if b then str else ""
@@ -134,17 +109,14 @@ sub2 (x,y) (a,b) = (a-x,b-y)
 apply2 :: (t -> t1) -> (t, t) -> (t1, t1)
 apply2 f (x,y) = (f x,f y)
 
+--fromDouble :: Fractional a => Double -> a
+--fromDouble = realToFrac
+
 fromInt :: Int -> Double
 fromInt = fromIntegral
 
 fromInt2 :: (Int, Int) -> (Double, Double)
 fromInt2 (x,y) = (fromInt x,fromInt y)
-
-fromDouble :: Fractional a => Double -> a
-fromDouble = realToFrac
-
-fromDouble2 :: (Fractional t, Fractional t1) => (Double, Double) -> (t, t1)
-fromDouble2 (x,y) = (fromDouble x,fromDouble y)
 
 round2 :: (RealFrac b, Integral d, RealFrac a, Integral c) => (a,b) -> (c,d)
 round2 (x,y) = (round x,round y)
@@ -176,8 +148,9 @@ outColor c i bgc = if deleted c then bgc else mkLight i c
 
 -- | @nextCol@ computes the successor of each color c c on a chromatic circle of 
 -- 6*255 = 1530 equidistant pure (or hue) colors. A color c is pure if c is 
--- neither black nor white and at most arith_one of the R-, G- and B-values of c is 
+-- neither black nor white and at most one of the R-, G- and B-values of c is 
 -- different from 0 and 255.
+
 nextCol :: Color -> Color
 
 nextCol (RGB 255 0 n) | n < 255 = RGB 255 0 (n+1)        -- n = 0   --> red
@@ -187,15 +160,15 @@ nextCol (RGB 0 255 n) | n > 0   = RGB 0 255 (n-1)        -- n = 255 --> cyan
 nextCol (RGB n 255 0) | n < 255 = RGB (n+1) 255 0        -- n = 0   --> green
 nextCol (RGB 255 n 0) | n > 0   = RGB 255 (n-1) 0        -- n = 255 --> yellow
 nextCol c | isBW c || deleted c = c 
-          | otherwise           = nextCol $ getHue c
+          | True                = nextCol $ getHue c
 
 getHue,complColor :: Color -> Color
 getHue (RGB r g b) = RGB (f 0) (f 1) (f 2) where s = [r,g,b]
                                                  low:mid:_ = qsort rel [0,1,2] 
                                                  rel i j = s!!i <= s!!j
-                                                 f i | i == low  = 0 
-                                                     | i == mid  = s!!i
-                                                     | otherwise = 255
+                                                 f i | i == low = 0 
+                                                     | i == mid = s!!i
+                                                     | True     = 255
 
 isHue :: Color -> Bool
 isHue (RGB r g b) = all (`elem` [0..255]) [r,g,b] &&
@@ -205,10 +178,11 @@ complColor c = iterate nextCol c!!765
   
 -- | @hue mode col n i@ computes the i-th successor of c in a chromatic circle
 -- of n <= 1530 equidistant pure colors.
-hue :: Int -- ^ mode 
-    -> Color -- ^ col
-    -> Int -- ^ n
-    -> Int -- ^ i
+
+hue :: Int -- type of mode 
+    -> Color -- type of col
+    -> Int -- type of n
+    -> Int -- type of i
     -> Color
 hue 0 col n i = iterate nextCol col!!(i*1530`div`n)
                                   -- round (fromInt i*1530/fromInt n)
@@ -226,14 +200,14 @@ nextColor mode n col  = hue mode col n 1
     (if @i@ is negative) pigment to c. If @i = n@ resp. @i = -n@, then @c@ turns
     white resp. black.
 -}
-nextLight :: Int -- ^ n
-    -> Int -- ^ i
-    -> Color -- ^ c
+nextLight :: Int -- type of n
+    -> Int -- type of i
+    -> Color -- type of c
     -> Color
 nextLight n i (RGB x y z) = RGB (f x) (f y) (f z)
-     where f x | i > 0     = x+i*(255-x)`div`n -- i=n  --> f x = 255 (white)
-               | otherwise = x+i*x`div`n       -- i=-n --> f x = 0   (black)
-
+             where f x | i > 0 = x+i*(255-x)`div`n -- i=n  --> f x = 255 (white)
+                       | True  = x+i*x`div`n       -- i=-n --> f x = 0   (black)
+   
 mkLight :: Int -> Color -> Color
 mkLight = nextLight 42
 
@@ -283,35 +257,29 @@ showStrList :: Show a => a -> String
 showStrList xs = show xs `minus` "[]\""
 
 splitSpec :: String -> (String, String, String, String, String)
-splitSpec = searchSig []
-  where searchSig sig []   = (sig,[],[],[],[])
-        searchSig sig rest
-                  | take 7 rest == "axioms:" = searchAxioms sig [] $ drop 7 rest
-                  | take 9 rest == "theorems:" =
-                    searchTheorems sig [] [] $ drop 9 rest
-                  | take 9 rest == "conjects:" =
-                    searchConjects sig [] [] [] $ drop 9 rest
-                  | take 6 rest == "terms:" = (sig, [], [], [], drop 6 rest)
-                  | otherwise = searchSig (sig ++ [head rest]) $ tail rest
-        searchAxioms sig axs []   = (sig,axs,[],[],[])
-        searchAxioms sig axs rest
-                  | take 9 rest == "theorems:" =
-                    searchTheorems sig axs [] $ drop 9 rest
-                  | take 9 rest == "conjects:" =
-                    searchConjects sig axs [] [] $ drop 9 rest
-                  | take 6 rest == "terms:" = (sig, axs, [], [], drop 6 rest)
-                  | otherwise = searchAxioms sig (axs ++ [head rest]) $ tail rest
-        searchTheorems sig axs ths []   = (sig,axs,ths,[],[])
-        searchTheorems sig axs ths rest
-                  | take 9 rest == "conjects:" =
-                    searchConjects sig axs ths [] $ drop 9 rest
-                  | take 6 rest == "terms:" = (sig, axs, ths, [], drop 6 rest)
-                  | otherwise =
-                    searchTheorems sig axs (ths ++ [head rest]) $ tail rest
-        searchConjects sig axs ths conjs []   = (sig,axs,ths,conjs,[])
-        searchConjects sig axs ths conjs rest =
-           if take 6 rest == "terms:" then (sig,axs,ths,conjs,drop 6 rest) 
-           else searchConjects sig axs ths (conjs++[head rest]) $ tail rest
+splitSpec = searchSig [] where
+     searchSig sig []   = (sig,[],[],[],[])
+     searchSig sig rest
+      | take 7 rest == "axioms:" = searchAxioms sig [] $ drop 7 rest
+      | take 9 rest == "theorems:" = searchTheorems sig [] [] $ drop 9 rest
+      | take 9 rest == "conjects:" = searchConjects sig [] [] [] $ drop 9 rest
+      | take 6 rest == "terms:" = (sig, [], [], [], drop 6 rest)
+      | True = searchSig (sig ++ [head rest]) $ tail rest
+     searchAxioms sig axs []   = (sig,axs,[],[],[])
+     searchAxioms sig axs rest
+      | take 9 rest == "theorems:" = searchTheorems sig axs [] $ drop 9 rest
+      | take 9 rest == "conjects:" = searchConjects sig axs [] [] $ drop 9 rest
+      | take 6 rest == "terms:" = (sig, axs, [], [], drop 6 rest)
+      | True = searchAxioms sig (axs ++ [head rest]) $ tail rest
+     searchTheorems sig axs ths [] = (sig,axs,ths,[],[])
+     searchTheorems sig axs ths rest
+      | take 9 rest == "conjects:" = searchConjects sig axs ths [] $ drop 9 rest
+      | take 6 rest == "terms:" = (sig, axs, ths, [], drop 6 rest)
+      | True = searchTheorems sig axs (ths ++ [head rest]) $ tail rest
+     searchConjects sig axs ths conjs [] = (sig,axs,ths,conjs,[])
+     searchConjects sig axs ths conjs rest 
+      | take 6 rest == "terms:" = (sig,axs,ths,conjs,drop 6 rest) 
+      | True = searchConjects sig axs ths (conjs++[head rest]) $ tail rest
 
 -- used by Ecom > addSpec
 
@@ -369,8 +337,8 @@ inverse f s = h s id where h (x:s) g = h s (upd g (f x) x)
 -- | @getMax as pairs@ returns all maximal subsets bs of as such that for all
 -- (a,b) in pairs, either a or b is in bs.
 
-getMax :: Eq a => [a] -- ^ as
-    -> [(a,a)] -- ^ pairs
+getMax :: Eq a => [a] -- type of as
+    -> [(a,a)] -- type of pairs
     -> [[a]]
 getMax as = maxima length . foldl f [as]
          where f ass (a,b) = concat [[minus1 as b,minus1 as a] | as <- ass]
@@ -407,21 +375,24 @@ invertRelL isss as = map f . indices_
 prefixes p = [take n p | n <- [0..length p]]
 
 -- | @subsets n@ returns all 'notnull' proper subsets of @[0..n-1]@.
+
 subsets
     :: (Enum a, Num a, Ord a)
-    => a -- ^ n
+    => a -- type of n
     -> [[a]]
 subsets n = concatMap (subsetsN n) [1..n-1]
 
 -- | @subsetsB n k@ returns all subsets of @[0..n-1]@ with at most @k@ elements.
+
 subsetsB
     :: (Enum b, Enum a, Eq b, Num b, Num a, Ord a)
-    => a -- ^ n
-    -> b -- ^ k
+    => a -- type of n
+    -> b -- type of k
     -> [[a]]
 subsetsB n k = concatMap (subsetsN n) [0..k]
 
 -- | @subsetsN n k@ returns all subsets of @[0..n-1]@ with exactly @k@ elements.
+
 subsetsN
     :: (Enum a, Eq b, Num b, Num a, Ord a)
     => a
@@ -454,6 +425,7 @@ xs `meet` ys = [x | x <- xs, x `elem` ys]
 
 -- | @related f xs ys =@ 'Prelude.any' (g ys) xs where g ys x =@ 'Prelude.any'
 -- @(f x) ys@ 
+
 minus1 :: Eq t => [t] -> t -> [t]
 xs `minus1` y = [x | x <- xs, x /= y]
 
@@ -484,6 +456,9 @@ meetM xss = [x | x <- joinM xss, all (elem x) xss]
 joinMap,meetMap :: Eq b => (a -> [b]) -> [a] -> [b]
 joinMap f = joinM . map f
 meetMap f = meetM . map f
+
+(<=<) :: Eq c => (b -> [c]) -> (a -> [b]) -> a -> [c]
+g <=< f = joinMap g . f
 
 mapSet :: Eq b => (a -> b) -> [a] -> [b]
 mapSet f (a:s) = mapSet f s `join1` f a
@@ -563,12 +538,28 @@ partition = foldl f . map single
 
 -- used by mkQuotient,colorClasses and Esolve > simplifyS "~"
 
--- fixpoint computations
+mkStrings :: String -> [String]
+mkStrings = foldl f [] where f strs '@'     = strs++[""]
+                             f [] x         = [[x]]
+                             f strs@(_:_) x = init strs++[last strs++[x]]
 
+-- used by Ecom > showSubtreePicts,showTreePicts
+
+-- fixpoint computations
+ 
 fixpt :: RelFun a -> (a -> a) -> a -> a
 fixpt le step a = if le b a then a else fixpt le step b where b = step a
+               
+-- requires finiteness of a and monotonicity of f
+ 
+successors :: Eq a => (a -> [a]) -> [a] -> [a]
+successors f = fixpt subset step where step s = s `join` joinMap f s
 
--- | extensional equality
+-- requires s `subset` f s, finiteness of a and monotonicity of f
+-- used by powerAuto and Esolve > intModAlg
+
+-- extensional equality
+
 eqFun :: (a1 -> b -> Bool) -> (a -> a1) -> (a -> b) -> [a] -> Bool
 eqFun eq f g s = length fs == length gs && and (zipWith eq fs gs)
                  where fs = map f s
@@ -644,19 +635,16 @@ pascal 0 = [1]
 pascal n = zipWith (+) (s++[0]) (0:s) where s = pascal $ n-1
 
 cantor :: Int -> Pos -> Pos
-cantor n (x, y)
-      | even x =
-        if even y then
-          if x > 0 then if y' < n then (x - 1, y') else (x', y) else
-            if y' < n then (0, y') else (1, y)
-          else if x' < n then (x', y - 1) else (x, y')
-      | even y =
-        if y > 0 then if x' < n then (x', y - 1) else (x, y') else
-          if x' < n then (x', 0) else (x, 1)
-      | y' < n = (x - 1, y')
-      | otherwise = (x', y)
-      where x' = x + 1
-            y' = y + 1
+cantor n (x, y) | even x = if even y 
+                           then if x > 0 
+                                then if y' < n then (x-1,y') else (x',y) 
+                                else if y' < n then (0,y') else (1,y)
+                           else if x' < n then (x',y-1) else (x,y')
+                | even y = if y > 0 then if x' < n then (x',y-1) else (x,y') 
+                                    else if x' < n then (x',0) else (x,1)
+                | y' < n = (x-1,y')
+                | True   = (x',y)
+                           where x' = x+1; y' = y+1
 
 cantorshelf :: Int -> [a] -> [a]
 cantorshelf n s = foldl f s $ indices_ s
@@ -665,14 +653,13 @@ cantorshelf n s = foldl f s $ indices_ s
 
 snake :: Int -> [a] -> [a]
 snake n s = [s!!(x i*n+z i) | i <- indices_ s]
-             where z i
-                      | even xi = yi
+            where x i = i`div`n
+                  y i = i`mod`n
+                  z i | even xi                = yi
                       | xi == length s `div` n = length s `mod` n - 1 - yi
-                      | otherwise = n - 1 - yi
-                      where xi = x i
-                            yi = y i
-                   x i = i`div`n
-                   y i = i`mod`n
+                      | True                   = n - 1 - yi
+                        where xi = x i
+                              yi = y i
  
 transpose :: Int -> [a] -> [a]
 transpose n s = [s!!(x i*n+y i) | i <- indices_ s] where x i = i`mod`n
@@ -683,8 +670,9 @@ mirror n s = [s!!(x i*n+y i) | i <- indices_ s] where x i = n-1-i`div`n
                                                       y i = i`mod`n
 
 -- | @shuffle ss@ zips the lists of @ss@ before concatenating them.
+
 shuffle
-    :: [[a]] -- ^ ss
+    :: [[a]] -- type of ss
     -> [a]
 shuffle = concat . foldl f [[]] where f (s:ss) (x:s') = (s++[x]):f ss s'
                                       f _ (x:s)       = [x]:f [] s
@@ -707,6 +695,7 @@ odds _      = []
 
 -- | @search f s@ searches for the first element of @s@ satisfying @f@ and
 -- returns its position within @s@.
+
 search :: (a -> Bool) -> [a] -> Maybe Int
 search f = g 0 where g i (a:s) = if f a then Just i else g (i+1) s
                      g _ _     = Nothing
@@ -738,6 +727,7 @@ searchGetR f s = g $ length s-1 where
 
 -- | @searchGet2 f g s@ searches for the first element @x@ of @s@ satisfying @f@
 -- and then, in the rest of @s@, for the first element @y@ with @g x y@.
+
 searchGet2 :: (a -> Bool) -> RelFun a -> [a] -> Maybe (Int,a,a)
 searchGet2 f g = h [] 0 where
                  h s i (x:s') = if f x then case searchGet (g x) $ s++s' of
@@ -756,50 +746,33 @@ searchGetM f = g 0 where g i (a:s) = if just b then b else g (i+1) s
                          g _ _     = Nothing
 
 search2 :: Num b => (a -> Bool) -> (a -> Bool) -> [a] -> Maybe (b, Bool)
-search2 f g s = h s 0 where h (x : s) i
-                                  | f x = Just (i, True)
-                                  | g x = Just (i, False)
-                                  | otherwise = h s $ i + 1
-                            h _ _     = Nothing
+search2 f g s = h s 0 where h (x:s) i | f x  = Just (i, True)
+                                      | g x  = Just (i, False)
+                                      | True = h s $ i + 1
+                            h _ _ = Nothing
 
-search4 :: (Num b, Num c) =>
-           (a -> Bool)
-           -> (a -> Bool)
-           -> (a -> Bool)
-           -> (a -> Bool)
-           -> [a]
-           -> Maybe (b, c)
-search4 f1 f2 f3 f4 s = g s 0 where g (x : s) i
-                                      | f1 x = Just (i, 1)
-                                      | f2 x = Just (i, 2)
-                                      | f3 x = Just (i, 3)
-                                      | f4 x = Just (i, 4)
-                                      | otherwise = g s $ i + 1
-                                    g _ _     = Nothing
+-- searchback(f)(s) searches for the first element of reverse(s) satisfying f 
+-- and returns its position within s.
 
--- | @searchback f s@ searches for the first element of reverse @s@ satisfying
--- @f@ and returns its position within @s@.
-searchback
-    :: (a -> Bool) -- ^ f
-    -> [a] -- ^ s
-    -> Maybe Int
-searchback f s = g s $ length s-1
-            where g s@(_:_) i = if f $ last s then Just i else g (init s) $ i-1
-                  g _ _       = Nothing
+searchback :: (a -> Bool) -- type of f
+           -> [a]         -- type of s
+           -> Maybe Int
+searchback f s = g s $ length s-1 where
+                 g s@(_:_) i = if f $ last s then Just i else g (init s) $ i-1
+                 g _ _       = Nothing
 
--- | @shift n ns@ removes @n@ from @ns@ and decreases the elements @i > n@ of
--- @ns@ by 1.
-shift
-    :: (Num a, Ord a)
-    => a -- ^ n
-    -> [a] -- ^ ns
-    -> [a]
+-- shift(n)(ns) removes n from ns and decreases the elements i > n of ns by 1.
+
+shift :: (Num a, Ord a)
+      => a   -- type of n
+      -> [a] -- type of ns
+      -> [a]
 shift n ns = [i | i <- ns, i < n] ++ [i-1 | i <- ns, i > n]
 
 splitString :: Int -> Int -> Renaming
 splitString k n str = if null rest then prefix 
                       else prefix++newBlanks k (splitString k n rest)
-                    where (prefix,rest) = splitAt n str
+                      where (prefix,rest) = splitAt n str
 
 splitStrings :: Int -> Int -> String -> [String] -> String
 splitStrings k n init strs = 
@@ -810,51 +783,54 @@ splitStrings k n init strs =
                                         where str2 = str++str1++" "
           f sr _ = sr
 
--- | @mkRanges ns n@ builds the syntactically smallest partition @p@ of
--- @n@:@ns@ such that all @ms@ in @p@ consist of successive integers.
-mkRanges
-    :: (Eq a, Num a, Show a)
-    => [a] -- ^ ns
-    -> a -- ^ n
-    -> String
-mkRanges ns n = f ns [] (n,n)
-   where f (k:ns) part sect@(m,n) = if k == n' then f ns part (m,n')
-                                               else f ns (part++[sect]) (k,k)
-                                    where n' = n+1
-         f _ part sect            = g (part++[sect])
-         g ((m,n):sects) | m == n    = show m++rest
-                         | otherwise = show m++".."++show n++rest
-                                    where rest = if null sects then []
-                                                               else ',':g sects
-         g _ = ""
+-- mkRanges(ns)(n) builds the syntactically smallest partition p of n:ns such 
+-- that all ms in p consist of successive integers.
 
--- | @mkLists s ns@ computes the partition of @s@ whose i-th element has
--- @ns !! i@ elements.
-mkLists
-    :: (Eq b, Num b)
-    => [a] -- ^ s
-    -> [b] -- ^ ns
-    -> [[a]]
+mkRanges :: (Eq a, Num a, Show a)
+         => [a] -- type of ns
+         -> a   -- type of n
+         -> String
+mkRanges ns n = f ns [] (n,n) where
+  f (k:ns) part sect@(m,n) = if k == n' then f ns part (m,n')
+                                        else f ns (part++[sect]) (k,k)
+                             where n' = n+1
+  f _ part sect            = g (part++[sect])
+  g ((m,n):sects) | m == n = show m++rest
+                  | True   = show m++".."++show n++rest
+                             where rest = if null sects then [] else ',':g sects
+  g _ = ""
+
+-- mkLists(s)(ns) computes the partition of @s@ whose i-th element has ns!!i 
+-- elements.
+
+mkLists :: (Eq b, Num b)
+        => [a] -- type of s
+        -> [b] -- type of ns
+        -> [[a]]
 mkLists s = f s [] where f s s' (0:ns)     = s':f s [] ns
                          f (x:s) s' (n:ns) = f s (s'++[x]) ((n-1):ns)
                          f _ _ _           = []
 
-traces :: Eq a => (a -> [a]) -> a -> a -> [[a]]
-traces f a = h [a] a where 
-             h visited a c = if a == c then [[a]] 
-                                       else do b <- f a`minus`visited
-                                               trace <- h (b:visited) b c
-                                               [a:trace]
+traces :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[a]]
+traces f labs a = h [a] a where
+                  h visited a last = if a == last then [[a]] 
+                                     else do lab <- labs
+                                             b <- f a lab `minus` visited
+                                             trace <- h (b:visited) b last
+                                             [a:trace]
+-- used by simplifyS "traces" 
 
-tracesL :: Eq a => [lab] -> (a -> lab -> [a]) -> a -> a -> [[lab]]
-tracesL labs f a = h [a] a where 
-                   h visited a c = if a == c then [[]] 
-                                   else do lab <- labs
-                                           b <- f a lab`minus`visited
-                                           trace <- h (b:visited) b c
-                                           [lab:trace]
+tracesL :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[lab]]
+tracesL f labs a = h [a] a where
+                   h visited a last = if a == last then [[]] 
+                                      else do lab <- labs
+                                              b <- f a lab `minus` visited
+                                              trace <- h (b:visited) b last
+                                              [lab:trace]
+-- used by simplifyS "tracesL" 
 
--- | minimal DNFs represented as subsets of {'0','1','#'}^n for some n > 0
+-- minimal DNFs represented as subsets of {'0','1','#'}^n for some n > 0
+
 minDNF :: [String] -> [String]
 minDNF bins = f bins' $ length bins'
               where bins' = maxis leqBin bins
@@ -864,9 +840,10 @@ minDNF bins = f bins' $ length bins'
 
 -- | @mkSups [] bins@ replaces elements of @bins@ by suprema of subsets of
 -- @bins@.
+
 mkSups
-    :: [String] -- ^ []
-    -> [String] -- ^ bins
+    :: [String] -- type of []
+    -> [String] -- type of bins
     -> [String]
 mkSups bins (bin:bins') = case search f $ indices_ bin of
                                Just i -> mkSups (updList bin i '#':bins) bins'
@@ -890,6 +867,7 @@ minterms bin = if '#' `elem` bin then concatMap minterms [f '0',f '1']
 
 -- | @funToBins (f,n)@ translates a function @f :: {'0','1','#'}^n ->@
 -- 'Prelude.Bool' into a minimal DNF representing f.
+
 funToBins :: (Eq a, Num a) => (String -> Bool, a) -> [String]
 funToBins (f,n) = minDNF $ filter f $ binRange n
                   where binRange 0 = [""]
@@ -900,30 +878,31 @@ funToBins (f,n) = minDNF $ filter f $ binRange n
 
 -- | @karnaugh n@ is the empty Karnaugh matrix that consists of all elements of
 -- {'0','1'}^n.
+
 karnaugh :: Int -> (Array (Int,Int) String,Int,Int)
 karnaugh 1          = (array ((1,1),(1,2)) [((1,1),"0"),((1,2),"1")],1,2)
 karnaugh n | even n = (mkArray ((1,1),(k,m)) f,k,m)
                        where (arr,mid,m) = karnaugh (n-1)
                              k = mid*2
-                             f (i,j) | i <= mid  = '0':arr!(i,j)
-                                     | otherwise = '1':arr!(2*mid-i+1,j)
+                             f (i,j) | i <= mid = '0':arr!(i,j)
+                                     | True     = '1':arr!(2*mid-i+1,j)
 karnaugh n          = (mkArray ((1,1),(k,m)) f,k,m)
                        where (arr,k,mid) = karnaugh (n-1)
                              m = mid*2
-                             f (i,j) | j <= mid  = '0':arr!(i,j)
-                                     | otherwise = '1':arr!(i,2*mid-j+1)
+                             f (i,j) | j <= mid = '0':arr!(i,j)
+                                     | True     = '1':arr!(i,2*mid-j+1)
 
 -- | @binsToBinMat bins n@ translates a DNF into an equivalent Karnaugh matrix.
+
 binsToBinMat
     :: (Ix a, Ix b)
-    => [String] -- ^ bins
+    => [String] -- type of bins
     -> Array (a, b) String
     -> a
     -> b
     -> String
 binsToBinMat bins arr i j = if any (e `leqBin`) bins then ("red_"++e) else e
                             where e = arr!(i,j)
-
 
 -- OBDDs
 
@@ -1021,6 +1000,7 @@ minima f s = [x | x <- s, f x == minimum (map f s)]
 minmax :: (Ord a,Ord b,Num a,Num b) => [(a,b)] -> (a,b,a,b)
 minmax ps@((x,y):_) = foldl f (x,y,x,y) ps
             where f (x1,y1,x2,y2) (x,y) = (min x x1,min y y1,max x x2,max y y2)
+minmax _ = (0,0,0,0)
 
 -- nextPerm s computes the successor of s with respect to the reverse
 -- lexicographic ordering (see Paulson, ML for the Working Programmer, p. 95f.)
@@ -1061,13 +1041,13 @@ mkPerm = snd . f
                insert x _ cs        = ([x],cs)
 
 -- monad handling
-
-(<=<) :: Monad m => (b -> m c) -> (a -> m b) -> (a -> m c)
-(<=<) = (Haskell.<=<)
-
-foldlM:: Monad m => (a -> b -> m a) -> a -> [b] -> m a
-foldlM f a (b:bs) = do a <- f a b; foldlM f a bs
-foldlM _ a _      = return a
+  
+foldlMS :: Monad m => (a -> m a) -> (a -> b -> m a) -> a -> [b] -> m a
+foldlMS succs f a (b:bs) = do a <- succs a; a <- f a b; foldlMS succs f a bs
+foldlMS succs _ a _      = succs a
+  
+foldlM :: Monad m => (a -> b -> m a) -> a -> [b] -> m a
+foldlM = foldlMS return
 
 liftM :: Monad m => (a -> b) -> m a -> m b
 liftM = Haskell.liftM
@@ -1147,136 +1127,131 @@ item = P $ do
     return c
 
 char :: Char -> Parser Char
-char x        = sat item (== x)
+char x = sat item (== x)
 
 nchar :: Char -> Parser Char
-nchar x       = sat item (/= x)
+nchar x = sat item (/= x)
 
 string :: String -> Parser String
-string        = mapM char
+string = mapM char
 
 some :: Parser a -> Parser [a]
-some p        = do x <- p; xs <- many p; return $ x:xs
+some p = do x <- p; xs <- many p; return $ x:xs
 
 many :: Parser a -> Parser [a]
-many p        = some p ++ return []
+many p = some p ++ return []
 
 space :: Parser String
-space         = many $ sat item (`elem` " \t\n")
+space = many $ sat item (`elem` " \t\n")
 
 token :: Parser a -> Parser a
-token p       = do space; x <- p; space; return x
+token p = do space; x <- p; space; return x
 
 tchar :: Char -> Parser Char
-tchar         = token . char
+tchar = token . char
 
 symbol :: String -> Parser String
-symbol        = token . string
+symbol = token . string
 
-tokenItems    = token . some . sat item
+tokenItems = token . some . sat item
 
 oneOf :: [String] -> Parser String
-oneOf         = concat . map symbol
+oneOf = concat . map symbol
 
-enclosed p    = concat [do tchar '('; r <- p; tchar ')'; return r,
-                        token p]
+enclosed p = concat [do tchar '('; r <- p; tchar ')'; return r,
+                     token p]
 
-bool          = concat [symbol "True" >> return True,
-                        symbol "False" >> return False]
+bool = concat [symbol "True" >> return True,
+               symbol "False" >> return False]
 
 data Strategy = DF | BF | PA deriving (Show,Eq)
 
-strategy      = concat [symbol "DF" >> return DF,
-                        symbol "BF" >> return BF,
-                        symbol "PA" >> return PA]
+strategy = concat [symbol "DF" >> return DF,
+                   symbol "BF" >> return BF,
+                   symbol "PA" >> return PA]
 
 stratWord strat = case strat of DF -> "depthfirst"
                                 BF -> "breadthfirst"
                                 _  -> "parallel"
 
 digit :: Parser Int
-digit         = do d <- sat item isDigit; return $ ord d-ord '0'
+digit = do d <- sat item isDigit; return $ ord d-ord '0'
 
 hexdigit :: Parser Int
-hexdigit      = concat [do d <- sat item isAToF; return $ ord d-ord 'A'+10,
-                        digit]
-                where isAToF c = 'A' <= c && c <= 'F'
+hexdigit = concat [do d <- sat item isAToF; return $ ord d-ord 'A'+10,
+                   digit]
+           where isAToF c = 'A' <= c && c <= 'F'
 
 nat :: Parser Int
-nat           = do ds <- some digit; return $ foldl1 f ds where f n d = 10*n+d
+nat = do ds <- some digit; return $ foldl1 f ds where f n d = 10*n+d
 
 pnat :: Parser Int
-pnat          = sat nat (> 0)
+pnat = sat nat (> 0)
 
 pnatSecs :: Parser Integer
-pnatSecs      = do n <- pnat; char 's'; return $ toInteger n
+pnatSecs = do n <- pnat; char 's'; return $ toInteger n
 
 charNat :: Char -> Parser Int
-charNat x     = do char x; nat
+charNat x = do char x; nat
 
 strNat :: String -> Parser Int
-strNat x      = do string x; nat
+strNat x = do string x; nat
 
 int :: Parser Int
-int           = nat ++ do char '-'; n <- nat; return $ -n
+int = nat ++ do char '-'; n <- nat; return $ -n
 
 intRange :: Parser [Int]
-intRange      = do i <- int; string ".."; k <- int; return [i..k]
+intRange = do i <- int; string ".."; k <- int; return [i..k]
 
 intRangeOrInt :: Parser [Int]
 intRangeOrInt = intRange ++ do i <- int; return [i]
 
 intRanges :: Parser [Int]
-intRanges     = do is <- token intRangeOrInt
-                   concat [do ks <- intRanges; return $ is++ks,
-                           return is]
+intRanges = do is <- token intRangeOrInt
+               concat [do ks <- intRanges; return $ is++ks,
+                       return is]
 
-double :: Parser Double
-double        = p ++ do char '-'; r <- p; return $ -r
-                where p = do n <- nat; char '.'; ds <- some digit
-                             let m = foldl1 (\n d -> 10*n+d) ds
-                                 r = fromInt n+fromInt m*0.1^length ds
-                             k <- expo; return $ r*10^k
-                      expo = concat [do string "e+"; nat,
-                                     do string "e-"; n <- nat; return $ -n,
-                                     do string "e"; nat,
-                                     return 0]
-
-
-real :: Parser Double
-real          = concat [do r <- double; return (realToFrac (fromDouble r::Float)),
-                        int >>= return . fromInt]
--- OHaskell fix: Cast to Float and back to fix a precission problem.
+double,real :: Parser Double
+double = p ++ do char '-'; r <- p; return $ -r
+         where p = do n <- nat; char '.'; ds <- some digit; exp <- expo
+                      let mant = foldl1 (\n d -> 10*n+d) ds
+                          rat = fromInt n+fromInt mant*recip(10^length ds)
+                      return $ rat*10^^exp
+               expo = concat [do string "e+"; nat,
+                              do string "e-"; n <- nat; return $ -n,
+                              do string "e"; nat,
+                              return 0]
+real   = double ++ (int >>= return.fromInt)
 
 rgbcolor :: Parser Color
-rgbcolor      = do symbol "RGB"; r <- token int; g <- token int; b <- token int
-                   return $ RGB r g b
+rgbcolor = do symbol "RGB"; r <- token int; g <- token int; b <- token int
+              return $ RGB r g b
 
 hexcolor :: Parser Color
-hexcolor      = do char '#'
-                   [d1,d2,d3,d4,d5,d6] <- Haskell.replicateM 6 hexdigit
-                   return $ RGB (16*d1+d2) (16*d3+d4) $ 16*d5+d6
+hexcolor = do char '#'
+              [d1,d2,d3,d4,d5,d6] <- Haskell.replicateM 6 hexdigit
+              return $ RGB (16*d1+d2) (16*d3+d4) $ 16*d5+d6
 
 color :: Parser Color
-color         = concat [symbol "dark" >> color >>= return . dark,
-                        symbol "light" >> color >>= return . light,
-                        symbol "black" >> return black,
-                        symbol "grey" >> return grey,
-                        symbol "white" >> return white,
-                        symbol "red" >> return red,
-                        symbol "magenta" >> return magenta,
-                        symbol "blue" >> return blue,
-                        symbol "cyan" >> return cyan,
-                        symbol "green" >> return green,
-                        symbol "yellow" >> return yellow,
-                        symbol "orange" >> return orange,
-                        rgbcolor,token hexcolor]
+color = concat [symbol "dark" >> color >>= return . dark,
+                symbol "light" >> color >>= return . light,
+                symbol "black" >> return black,
+                symbol "grey" >> return grey,
+                symbol "white" >> return white,
+                symbol "red" >> return red,
+                symbol "magenta" >> return magenta,
+                symbol "blue" >> return blue,
+                symbol "cyan" >> return cyan,
+                symbol "green" >> return green,
+                symbol "yellow" >> return yellow,
+                symbol "orange" >> return orange,
+                rgbcolor,token hexcolor]
 
 colPre :: Parser (Color, String)
-colPre      = do col <- color; char '_'; x <- many item; return (col,x)
+colPre = do col <- color; char '_'; x <- many item; return (col,x)
 
 delCol :: String -> String
-delCol a      = case parse colPre a of Just (_,a) -> a; _ -> a
+delCol a = case parse colPre a of Just (_,a) -> a; _ -> a
 
 delQuotes :: String -> String
 delQuotes a = if just $ parse (quoted++infixWord) b then init $ tail b else b
@@ -1286,7 +1261,11 @@ delQuotes a = if just $ parse (quoted++infixWord) b then init $ tail b else b
 -- drawWidg Text,halfmax, Esolve > simplifyOne and Ecom > drawNode
 
 quoted :: Parser String
-quoted      = do char '"'; x <- many $ sat item (/= '"'); char '"'; return x
+quoted = do char '"'; x <- many $ sat item (/= '"'); char '"'; return x
+
+date :: Parser String
+date = do day <- digits; char '.'; month <- digits; char '.'; year <- digits
+          return $ ' ':day++'.':month ++'.':year++" " 
 
 infixChar c = c `elem` "$.;:+-*<=~>/\\^#%&|!"
 
@@ -1322,21 +1301,21 @@ infixFun    = sat infixToken . functional
 infixRel    = sat infixToken . relational
 
 functional :: Sig -> String -> Bool
-functional sig    = (sig&sig_isConstruct) ||| (sig&sig_isDefunct)
+functional sig = isConstruct sig ||| isDefunct sig
 
 relational sig x  = declaredRel sig x || x == "rel"
 
 declared :: Sig -> String -> Bool
-declared sig      = functional sig ||| relational sig ||| logical
+declared sig = functional sig ||| relational sig ||| logical
 
 declaredRel :: Sig -> String -> Bool
-declaredRel sig x = (sig&sig_isPred) x || (sig&sig_isCopred) x || x `elem` words "= =/="
+declaredRel sig x = isPred sig x || isCopred sig x || x `elem` words "= =/="
 
-isConstr sig      = (sig&sig_isConstruct) ||| collector
+isConstr sig      = isConstruct sig ||| collector
 
-isValue sig       = andT $ isConstr sig
+isValue sig       = andTree $ isConstr sig 
 
-isNormal sig      = andT $ isConstr sig ||| isVar sig
+isNormal sig      = andTree $ isConstr sig ||| isVar sig
 
 list p            = concat [symbol "[]" >> return [],
                             do tchar '['; xs <- someC p; tchar ']'; return xs]
@@ -1528,7 +1507,7 @@ singleTerm sig = concat [do x <- oneOf termBuilders
                          constant sig,
                          sat noDelims (functional sig)
                                    >>= curryrestF sig . leaf,
-                         sat noDelims (sig&sig_isFovar) >>= return . V,
+                         sat noDelims (isFovar sig) >>= return . V,
                          do x <- oneOf ["-","~"]
                             t <- singleTerm sig
                             return $ F x [t],
@@ -1547,9 +1526,10 @@ curryrestF sig = curryrest sig $ enclosedTerm sig
 constant :: Sig -> Parser TermS
 constant sig = concat [symbol "()" >> return unit,
                        symbol "pos " >> many (token nat) >>= return . mkPos,
+                       token quoted >>= return . mkConst,
+                       token date >>= return . mkConst,
                        token double >>= return . mkConst,
                        token int >>= curryrestF sig . mkConst,
-                       token quoted >>= return . mkConst,
                        token hexcolor >>= curryrestF sig . mkConst,
                        do RGB r g b <- rgbcolor
                           curryrestF sig $ leaf $ unwords
@@ -1617,34 +1597,51 @@ updRel rel a bs = case searchGet ((== a) . fst) rel of
 
 -- used by tripsToFun and Esolve > relToPairs,sigrest	
 
+funToList :: Eq b => [a] -> [b] -> (a -> [b]) -> [[Int]]
+funToList as bs f = foldl g [] $ indices_ as 
+                    where g is i = updList is i $ map (getInd bs) $ f $ as!!i
+                                
+-- used by Ecom > buildKripke 4
+
+listLToFun :: [[[Int]]] -> Int -> Int -> [Int] 
+listLToFun iss i k = if i `elem` indices_ iss && k `elem` indices_ (iss!!i)
+                     then iss!!i!!k else []
+                     
+-- used by powerAuto
+
+funLToList :: Eq c => [a] -> [b] -> [c] -> (a -> b -> [c]) -> [[[Int]]]
+funLToList as bs cs f = foldl g [] $ indices_ as 
+       where g iss i = updList iss i $ foldl h [] $ indices_ bs 
+               where h js j = updList js j $ map (getInd cs) $ f (as!!i) $ bs!!j
+                                
+-- used by Ecom > buildKripke 4
+
 -- REGULAR EXPRESSIONS and ACCEPTORS
 
 data RegExp = Mt | Eps | Const String | Sum_ RegExp RegExp | Int_ |
               Prod RegExp RegExp | Star RegExp | Var String deriving Eq
 
 parseRE :: Sig -> TermS -> Maybe (RegExp,[String])
-                                      -- list of acceptor labels
+                                      -- acceptor labels
 parseRE _ (F "mt" [])      = Just (Mt,[])
-parseRE _ (F "eps" [])     = Just (Eps,["eps"])
+parseRE _ (F "eps" [])     = Just (Eps,[])
 parseRE _ (F "int" [])     = Just (Int_,["int"])
 parseRE _ (F "+" [])       = Just (Mt,[])
 parseRE sig (F "+" [t])    = parseRE sig t
 parseRE sig (F "+" ts)     = do pairs <- mapM (parseRE sig) ts
                                 let (e:es,ass) = unzip pairs
                                 Just (foldl Sum_ e es,joinM ass)
-parseRE _ (F "*" [])       = Just (Eps,["eps"])
+parseRE _ (F "*" [])       = Just (Eps,[])
 parseRE sig (F "*" [t])    = parseRE sig t
 parseRE sig (F "*" ts)     = do pairs <- mapM (parseRE sig) ts
                                 let (e:es,ass) = unzip pairs
                                 Just (foldl Prod e es,joinM ass)
-parseRE sig (F a [])       = if (sig&sig_isDefunct) a then Just (Var a,[a])
+parseRE sig (F a [])       = if isDefunct sig a then Just (Var a,[a])
                                                 else Just (Const a,[a])
 parseRE sig (F "plus" [t]) = do (e,as) <- parseRE sig t
                                 Just (Prod e $ Star e,as)
-parseRE sig (F "star" [t]) = do (e,as) <- parseRE sig t
-                                Just (Star e,as `join1` "eps")
-parseRE sig (F "refl" [t]) = do (e,as) <- parseRE sig t
-                                Just (Sum_ e Eps,as `join1` "eps")
+parseRE sig (F "star" [t]) = do (e,as) <- parseRE sig t; Just (Star e,as)
+parseRE sig (F "refl" [t]) = do (e,as) <- parseRE sig t; Just (Sum_ e Eps,as)
 parseRE _ (V x)            = Just (Var x,[x])
 parseRE _ _                = Nothing
 
@@ -1820,69 +1817,72 @@ reduceS b (e:es) = e:reduceS b es
 reduceS True _   = [Eps]
 reduceS _ _      = []
 
--- regToAuto e builds a nondeterministic acceptor with epsilon-transitions of 
--- the language of e.
+-- regToAuto e builds a nondeterministic acceptor for the language of e.
 
-type NDA = Int -> String -> [Int]
+type NDA = (Int -> [Int],Int -> String -> [Int])
 
 regToAuto :: RegExp -> ([Int],NDA)
-regToAuto e = ([0..nextq-1],delta)
-      where (delta,nextq) = eval e 0 1 (const2 []) 2
-            eval :: RegExp -> Int -> Int -> NDA -> Int -> (NDA,Int)
-            eval Mt _ _ delta nextq            = (delta,nextq)
-            eval Eps q q' delta nextq          = (upd2L delta q "eps" q',nextq)
-            eval (Const a) q q' delta nextq    = (upd2L delta q a q',nextq)
-            eval (Var x) q q' delta nextq      = (upd2L delta q x q',nextq)
-            eval (Sum_ e e') q q' delta nextq  = eval e' q q' delta' nextq'
-                         where (delta',nextq') = eval e q q' delta nextq
-            eval (Prod e e') q q' delta nextq  = eval e' nextq q' delta' nextq'
-                         where (delta',nextq') = eval e q nextq delta $ nextq+1
-            eval (Star e) q q' delta nextq     = (delta2,nextq')
-                  where q1 = nextq+1
-                        (delta1,nextq') = eval e nextq q1 delta $ q1+1
-                        delta2 = fold2 f delta1 [q,q1,q1,q] [nextq,nextq,q',q']
-                        f delta q = upd2L delta q "eps"
+regToAuto e = ([0..n-1],nda) where
+          (nda,n) = eval e 0 1 (const [],const2 []) 2
+          eval :: RegExp -> Int -> Int -> NDA -> Int -> (NDA,Int)
+          eval Mt _ _ nda n   = (nda,n)
+          eval Eps q q' (trans,transL) n       = ((updL trans q q',transL),n)
+          eval (Const a) q q' (trans,transL) n = ((trans,upd2L transL q a q'),n)
+          eval (Var x) q q' (trans,transL) n   = ((trans,upd2L transL q x q'),n)
+          eval (Sum_ e e') q q' nda n = eval e' q q' nda' n'  
+                                        where (nda',n') = eval e q q' nda n
+          eval (Prod e e') q q' nda n = eval e' n q' nda' n' 
+                                        where (nda',n') = eval e q n nda $ n+1
+          eval (Star e) q q' nda n = ((trans',transL),n') 
+                         where q1 = n+1
+                               ((trans,transL),n') = eval e n q1 nda $ q1+1
+                               trans' = fold2 updL trans [q,q1,q1,q] [n,n,q',q']
 
 -- used by Esolve > simplifyS "auto" and Ecom > buildKripke 4
 
--- powerAuto nda labs builds the (deterministic) power automaton induced by nda
--- with label set labs.
+-- powerAuto sig transforms the actual Kripke model into its equivalent 
+-- deterministic power automaton.
 
-powerAuto :: NDA -> [String] -> ([Int],Int -> String -> Int,[Int],[Int])
-powerAuto nda labs = (indices_ states,transL,initials,finals) where
-                     states = fixpt subset (joinMap f) [epsHull [0]]
-                     epsHull :: [Int] -> [Int]
-                     epsHull qs = if qs' `subset` qs then qs
-                                  else epsHull $ qs `join` qs'
-                                  where qs' = delta qs "eps"
-                     delta qs lab = joinMap (flip nda lab) qs
-                     f qs = [deltaH qs lab | lab <- labs] `join1` qs
-                     deltaH :: [Int] -> String -> [Int]
-                     deltaH qs  = epsHull . delta qs
-                     transL i lab = getInd states $ deltaH (states!!i) lab
-                     initials = getIndices (elem 0) states
-                     finals = getIndices (elem 1) states
-
--- used by Ecom > buildKripke 4
+powerAuto :: Sig -> [TermS] -> ([Int],[Int],[[[Int]]],[[Int]],[[[Int]]])
+powerAuto sig iniStates = (indices_ sts,newInits,trL,va,vaL)
+             where inits            = getIndices (`elem` iniStates) $ states sig
+                   sts              = fixpt subset (joinMap f) [hull inits]
+                   newInits         = getIndices (shares inits) sts
+                   hull             = successors (trans sig!!)
+                   oldTransL        = listLToFun $ transL sig
+                   newTransL qs lab = hull $ joinMap (flip oldTransL lab) qs
+                   labs             = indices_ $ labels sig
+                   f qs             = map (newTransL qs) labs `join1` qs
+                   g qs lab         = [newTransL qs lab]
+                   trL              = if null $ transL sig then [] 
+                                      else funLToList sts labs sts g 
+                   ats              = indices_ $ atoms sig
+                   newValue at      = filter (shares $ value sig!!at) sts 
+                   va               = if null $ value sig then [] 
+                                      else funToList ats sts newValue 
+                   newValueL at lab = filter (shares $ valueL sig!!at!!lab) sts 
+                   vaL              = if null $ valueL sig then [] 
+                                      else funLToList ats labs sts newValueL 
+ 
+-- used by Ecom > detKripke
 
 -- autoToReg sig start builds a regular expression with the same language as the
 -- automaton contained in sig if started in start. 
 
-autoToReg :: Sig -> TermS -> RegExp                     -- Kleene's algorithm
+autoToReg :: Sig -> TermS -> RegExp                        -- Kleene's algorithm
 autoToReg sig start = if null finals then Const "no final states"
                                      else foldl1 Sum_ $ map (f lg i) finals
-         where finals = (sig&sig_value)!!0
-               lg = length (sig&sig_states)-1
-               Just i = search (== start) (sig&sig_states)
+         where finals = value sig!!0
+               lg = length (states sig)-1
+               Just i = search (== start) $ states sig
                f (-1) i j = if i == j then Sum_ (delta i i) Eps else delta i j
-               f k i j    = Sum_ (f' i j) $
-                                 Prod (f' i k) $ Prod (Star $ f' k k) $ f' k j
+               f k i j    = Sum_ (f' i j) $ Prod (f' i k) $ Prod (Star $ f' k k) 
+                                          $ f' k j
                             where f' = f $ k-1
-               delta :: Int -> Int -> RegExp
                delta i j = if null labs then Mt else foldl1 Sum_ labs
-                           where labs = [Const $ showTerm0 $ (sig&sig_labels)!!k |
-                                                     k <- indices_ (sig&sig_labels),
-                                                     (sig&sig_transL)!!i!!k == [j]]
+                           where labs = [Const $ showTerm0 $ labels sig!!k 
+                                               | k <- indices_ $ labels sig,
+                                                 transL sig!!i!!k == [j]]
 
 -- used by Ecom > buildRegExp
 
@@ -1932,7 +1932,7 @@ bisim = map (pr1 *** pr2) . fixpt supset bisimStep . bisim0
 bisim0 :: Sig -> TriplesI
 bisim0 sig = [(i,j,transEquiv sig i j) | i <- is, j <- is, i < j,
                                          outEquiv sig i j]
-             where is = indices_ (sig&sig_states)
+             where is = indices_ $ states sig
 
 -- used by bisim0 and Esolve > simplifyS "minAuto"
 
@@ -1952,31 +1952,33 @@ outEquiv sig i j = out sig!!i `eqset` out sig!!j &&
                    and (zipWith eqset (outL sig!!i) $ outL sig!!j)
 
 transEquiv :: Sig -> Int -> Int -> BinRel [Int]
-transEquiv sig i j = if null (sig&sig_trans) then s
-                     else s `join1` ((sig&sig_trans)!!i,(sig&sig_trans)!!j)
-                     where s = mapSet h $ indices_ (sig&sig_labels)
-                           h k = ((sig&sig_transL)!!i!!k,(sig&sig_transL)!!j!!k)
+transEquiv sig i j = if null $ trans sig then s
+                     else s `join1` (trans sig!!i,trans sig!!j)
+                     where s = mapSet h $ indices_ $ labels sig
+                           h k = (transL sig!!i!!k,transL sig!!j!!k)
 
-mkQuotient :: Sig -> [TermS]
-                  -> ([TermS],[[Int]],[[[Int]]],[[Int]],[[[Int]]],[TermS])
-mkQuotient sig iniStates = (states,tr,trL,va,vaL,newInits)
-                  where part = partition (indices_ (sig&sig_states)) $ bisim sig
-                        states = map (((sig&sig_states)!!) . minimum) part
-                        inits = getIndices (`elem` iniStates) (sig&sig_states)
-                        newInits = map ((states!!) . newPos) inits
-                        [is,js,ks] = map indices_ [states,(sig&sig_labels),(sig&sig_atoms)]
-                        oldPos i = get $ search (== (states!!i)) (sig&sig_states)
-                        newPos i = get $ search (elem i) part
-                        tr  = if null (sig&sig_trans) then [] else map f is where
-                              f i = h $ (sig&sig_trans)!!oldPos i
-                        trL = if null (sig&sig_transL) then [] else map f is where
-                              f i = map g js where
-                                    g j = h $ (sig&sig_transL)!!oldPos i!!j
-                        va  = if null (sig&sig_value) then [] else map f ks where
-                              f i = h $ (sig&sig_value)!!i
-                        vaL = if null (sig&sig_valueL) then [] else map f ks where
-                              f i = map g js where g j = h $ (sig&sig_valueL)!!i!!j
-                        h = mapSet newPos
+-- mkQuotient sig minimizes the Kripke model of sig.
+
+mkQuotient :: Sig -> [TermS] -> ([TermS],[TermS],[[Int]],[[[Int]]],
+                                 [[Int]],[[[Int]]])
+mkQuotient sig iniStates = (sts,newInits,tr,trL,va,vaL)
+                    where part = partition (indices_ $ states sig) $ bisim sig
+                          sts = map ((states sig!!) . minimum) part
+                          [is,js,ks] = map indices_ [sts,labels sig,atoms sig]
+                          inits = getIndices (`elem` iniStates) $ states sig
+                          newPos i = get $ search (elem i) part
+                          newInits = map ((sts!!) . newPos) inits
+                          oldPos i = getInd (states sig) $ sts!!i
+                          h = mapSet newPos
+                          tr  = if null $ trans sig then [] else map f is where
+                                f i = h $ trans sig!!oldPos i
+                          trL = if null $ transL sig then [] else map f is where
+                                f i = map g js where
+                                      g j = h $ transL sig!!oldPos i!!j
+                          va  = if null $ value sig then [] else map f ks where
+                                f i = h $ value sig!!i
+                          vaL = if null $ valueL sig then [] else map f ks where
+                                f i = map g js where g j = h $ valueL sig!!i!!j
 
 -- used by Ecom > minimize
 
@@ -1986,50 +1988,50 @@ mkQuotient sig iniStates = (states,tr,trL,va,vaL,newInits)
 data ActLR  = Rule TermS Int | Read | Error deriving (Show,Eq)
 
 actTable :: Sig -> Int -> Int -> ActLR
-actTable sig i k = case (sig&sig_atoms)!!head acts of
+actTable sig i k = case atoms sig!!head acts of
                         F "shift" []  -> Read
                         F "error" []  -> Error
                         t@(F left ts) -> Rule t $ length $ meet ts
-                                                $ map ((sig&sig_labels)!!)
+                                                $ map (labels sig!!)
                                                 $ nonterminals sig
                    where acts = if k == -1 then out sig!!i else outL sig!!i!!k
 
 nonterminals :: Sig -> [Int]
-nonterminals sig = [k | k <- indices_ (sig&sig_labels),
+nonterminals sig = [k | k <- indices_ $ labels sig,
                         let f i = null $ outL sig!!i!!k,
-                        all f $ indices_ (sig&sig_states)]
+                        all f $ indices_ $ states sig]
 
 isLRmodel :: Sig -> Bool
-isLRmodel sig = all (f &&& g) $ indices_ (sig&sig_states)
-           where f i = length (out sig!!i) == 1
-                 g i = all (det i) $ indices_ (sig&sig_labels)
-                 det i k = length ((sig&sig_transL)!!i!!k) <= 1 &&
-                           (length (outL sig!!i!!k) == 1 ||
-                            null (outL sig!!i!!k) && k `elem` nonterminals sig)
+isLRmodel sig = all (f &&& g) $ indices_ $ states sig
+            where f i = length (out sig!!i) == 1
+                  g i = all (det i) $ indices_ $ labels sig
+                  det i k = length (transL sig!!i!!k) <= 1 &&
+                            (length (outL sig!!i!!k) == 1 ||
+                             null (outL sig!!i!!k) && k `elem` nonterminals sig)
 
 data LoopLR = More [TermS] [TermS] [TermS] | Success TermS | NoParse
 
 nextLR :: Sig -> [TermS] -> [TermS] -> [TermS] -> LoopLR
 nextLR sig sts@(st:_) asts input =
-                     case actTable sig i k of
-                          Read | notnull $ (sig&sig_transL)!!i!!k
-                                 -> More (st' i k:sts) asts $ tail input
-                          Rule t@(F left right) lg
-                               | left == "S" && length asts == lg
-                                 -> Success $ F rule asts
-                               | lgr < length sts && notnull ((sig&sig_transL)!!i!!k)
-                                 -> More (st' i k:sts') (us++[F rule vs]) input
-                                 where rule = showTerm0 t
-                                       lgr = length right
-                                       sts'@(st:_) = drop lgr sts
-                                       i = getInd (sig&sig_states) st
-                                       k = getInd (sig&sig_labels) $ leaf left
-                                       (us,vs) = splitAt (length asts-lg) asts
-                          _ -> NoParse
-                      where i = getInd (sig&sig_states) st
+                      case actTable sig i k of
+                           Read | notnull $ transL sig!!i!!k
+                                  -> More (st' i k:sts) asts $ tail input
+                           Rule t@(F left right) lg
+                                | left == "S" && length asts == lg
+                                  -> Success $ F rule asts
+                                | lgr < length sts && notnull (transL sig!!i!!k)
+                                  -> More (st' i k:sts') (us++[F rule vs]) input
+                                  where rule = showTerm0 t
+                                        lgr = length right
+                                        sts'@(st:_) = drop lgr sts
+                                        i = getInd (states sig) st
+                                        k = getInd (labels sig) $ leaf left
+                                        (us,vs) = splitAt (length asts-lg) asts
+                           _ -> NoParse
+                      where i = getInd (states sig) st
                             k = if null input then -1
-                                else getInd (sig&sig_labels) $ head input
-                            st' i k = (sig&sig_states)!!(head $ (sig&sig_transL)!!i!!k)
+                                else getInd (labels sig) $ head input
+                            st' i k = states sig!!(head $ transL sig!!i!!k)
 nextLR _ _ _ _ = NoParse
 
 -- used by simplifyS "parseLR"
@@ -2040,15 +2042,15 @@ type LinEq = ([(Double,String)],Double)   -- a1*x1+...+an*xn+a*x = b
 
 combLins :: (Double -> Double -> Double) -> Double -> LinEq -> LinEq -> LinEq
 combLins f c (ps,a) (qs,b) = (comb ps qs,f a b)
-           where comb ps@(p@(a,x):ps') qs@((b,y):qs')
+             where comb ps@(p@(a,x):ps') qs@((b,y):qs')
                        | x == y               = if fab == 0 then comb ps' qs'
-                                                      else (fab,x):comb ps' qs'
-                      | y `elem` map snd ps' = p:comb ps' qs
-                      | x `elem` map snd qs' = (b*c,y):comb ps qs'
-                      | otherwise            = p:(b*c,y):comb ps' qs'
-                                                      where fab = f a b
-                 comb [] ps                  = map h ps where h (a,x) = (a*c,x)
-                 comb ps _                   = ps
+                                                else (fab,x):comb ps' qs'
+                       | y `elem` map snd ps' = p:comb ps' qs
+                       | x `elem` map snd qs' = (b*c,y):comb ps qs'
+                       | True                 = p:(b*c,y):comb ps' qs'
+                                                where fab = f a b
+                   comb [] ps                 = map h ps where h (a,x) = (a*c,x)
+                   comb ps _                  = ps
 
 addLin, subLin :: LinEq -> LinEq -> LinEq
 addLin = combLins (+) 1
@@ -2083,22 +2085,24 @@ gauss2 eqs = do (i,eq,eq') <- searchGet2 f g eqs
 
 gauss3 :: [LinEq] -> [LinEq]
 gauss3 = f []
- where f eqs (eq@([(1,x)],b):eqs') = f (map g eqs++[eq]) (map g eqs')
-                  where g eq@(ps,c) = case searchGet ((== x) . snd) ps of
-                                       Just (i,(a,_)) -> (context i ps,c-a*b) 
-                                       _ -> eq
-       f eqs (eq:eqs')             = f (eqs++[eq]) eqs'
-       f eqs _                            = eqs
+         where f eqs (eq@([(1,x)],b):eqs') = f (map g eqs++[eq]) $ map g eqs'
+                      where g eq@(ps,c) = case searchGet ((== x) . snd) ps of
+                                          Just (i,(a,_)) -> (context i ps,c-a*b) 
+                                          _ -> eq
+               f eqs (eq:eqs') = f (eqs++[eq]) eqs'
+               f eqs _         = eqs
                      
 
 -- * Terms, formulas and reducts
 
-data Term a = V a | F a [Term a] | Hidden Special deriving (Show,Eq,Ord)
+data Term a = V a | F a [Term a] | Hidden Special deriving (Read,Show,Eq,Ord)
 
 data Special = Nil | Dissect [(Int,Int,Int,Int)] | EquivMat Sig TriplesI |
                BoolMat [String] [String] [(String,String)] |
+               TermMat [(String,String,TermS)] |
                ListMat [String] [String] TriplesS
 
+instance Read Special where readsPrec _ _ = []
 instance Show Special where show _ = ""
 instance Eq Special   where Nil == Nil = True
                             Dissect s == Dissect s' = s == s'
@@ -2114,13 +2118,13 @@ type TermS = Term String
 
 class Root a where undef :: a
 
-instance Root Color                         where undef = white
-instance Root Int                           where undef = 0
-instance Root Double                         where undef = 0.0
-instance Root [a]                           where undef = []
+instance Root Color                    where undef = white
+instance Root Int                      where undef = 0
+instance Root Double                   where undef = 0.0
+instance Root [a]                      where undef = []
 instance (Root a,Root b) => Root (a,b) where undef = (undef,undef)
 instance (Root a,Root b,Root c) => Root (a,b,c) 
-                                        where undef = (undef,undef,undef)
+                                       where undef = (undef,undef,undef)
 
 isV :: Term t -> Bool
 isV (V _) = True
@@ -2176,6 +2180,11 @@ x `isin` _      = False
 notIn :: Eq a => a -> Term a -> Bool
 notIn x = not . isin x
 
+mapConsts :: (a -> a) -> Term a -> Term a
+mapConsts f (F a []) = leaf $ f a
+mapConsts f (F a ts) = F a $ map (mapConsts f) ts
+mapConsts _ t        = t
+
 mapT :: (a -> b) -> Term a -> Term b
 mapT f (V a)      = V $ f a
 mapT f (F a ts)   = F (f a) $ map (mapT f) ts
@@ -2201,9 +2210,9 @@ foldT f (V a)    = f a []
 foldT f (F a ts) = f a $ map (foldT f) ts
 foldT f _        = f undef []
 
-andT,orT :: Root a => (a -> Bool) -> Term a -> Bool
-andT f = foldT g where g x bs = f x && and bs
-orT f  = foldT g where g x bs = f x || or bs
+andTree,orTree :: Root a => (a -> Bool) -> Term a -> Bool
+andTree f = foldT g where g x bs = f x && and bs
+orTree f  = foldT g where g x bs = f x || or bs
 
 foldTP :: Root a => ([Int] -> a -> [b] -> b) -> Term a -> b
 foldTP f = g [] where g p (V a)    = f p a []
@@ -2396,7 +2405,7 @@ mkHidden t          = t
 
 -- used by Epaint > widgConst and Ecom > drawThis
 
-constrPositions sig = labPoss (sig&sig_isConstruct)
+constrPositions sig = labPoss $ isConstruct sig
 
 varPositions sig    = labPoss $ isVar sig
 
@@ -2678,8 +2687,9 @@ posTree p (V x) | isPos x = V $ getPos x
 -- replace0 t p u replaces the subterm of t at position p by u.
 
 replace0 :: Term a -> [Int] -> Term a -> Term a
-replace0 t p u = f t p where f _ []         = u
-                             f (F x ts) p   = F x $ g ts p
+replace0 t p u = f t p where f _ []       = u
+                             f (F x ts) p = F x $ g ts p
+                             f t _        = t
                              g (t:ts) (0:p) = f t p:ts
                              g (t:ts) (n:p) = t:g ts (n-1:p)
                              g _ _          = []
@@ -2751,7 +2761,9 @@ collectors x y = collector x && collector y
 
 isNEq x = x `elem` words "== = =/="
 
-isRel x = x `elem` words "< > = <= >=" 
+isTransRel x = x `elem` words "= <= >= < >" 
+
+isRel x = isTransRel x || x == "=/=" 
 
 mkRel :: Ord a => String -> RelFun a
 mkRel "="   = (==)
@@ -2789,7 +2801,7 @@ eqTerm (F x ts) (F y us)
                | x == y = if idempotent x then eqSet eqTerm ts us
                           else if permutative x then eqBag eqTerm ts us
                                else eqTerms (renameVars emptySig x ts us) us
-eqTerm t u = bothHidden t u
+eqTerm t u = t == u
 
 eqTerms :: [TermS] -> [TermS] -> Bool
 eqTerms ts us = length ts == length us && and (zipWith eqTerm ts us)
@@ -2886,16 +2898,16 @@ vars (V x)    = if isPos x then [] else [x]
 vars _        = []
 
 isVar :: Sig -> String -> Bool
-isVar sig = (sig&sig_isFovar) ||| (sig&sig_isHovar)
+isVar sig = isFovar sig ||| isHovar sig
 
 isVarRoot :: Sig -> TermS -> Bool
-isVarRoot sig = isV ||| (sig&sig_isHovar) . getOp ||| isHidden
+isVarRoot sig = isV ||| isHovar sig . getOp ||| isHidden
 
 newVar :: Int -> TermS
 newVar n = V $ 'z':show n
 
 mkVar :: Sig -> String -> TermS 
-mkVar sig x = if (sig&sig_isFovar) x then V x else F x []
+mkVar sig x = if isFovar sig x then V x else F x []
 
 allSyms :: (String -> Bool) -> TermS -> [String]
 allSyms b (F x [t]) | binder x = allSyms b t `join` filter b (tail $ words x)
@@ -3062,7 +3074,7 @@ showFactor (F "==" ts) n         = showVer "==" showTerm ts n
 showFactor t n                   = showTerm t n
 
 showTerm (V x) n                 = ((x++),length x)
-showTerm (F x []) _              = ((x++),length x)
+showTerm (F x []) _              = ((z++),length z) where z = chgDouble x
 showTerm (F x [t]) n
      | x `elem` "~":termBuilders = ((x++) . enclose st,lg+2+k)
                                    where lg = length x
@@ -3164,10 +3176,10 @@ showVer0 _ _ _ _ _           = (id,0)
 
 -- TERM PARSER
 
-parseBins t   = do s <- parseList (parse quoted . root) t
-                   guard $ notnull s && allEqual (map length s)
-                                     &&  all (all (`elem` "01#")) s
-                   Just s
+parseBins t = do s <- parseList (parse quoted . root) t
+                 guard $ notnull s && allEqual (map length s)
+                                   &&  all (all (`elem` "01#")) s
+                 Just s
 
 -- parseBool (F "0" []) = Just False
 -- parseBool t          = do F "1" [] <- Just t; Just True
@@ -3214,40 +3226,37 @@ parseColl p t   = do F x ts <- Just t; guard $ collector x; mapM p ts
 -- used by Ecom > transformGraph
 
 parseNat :: TermS -> Maybe Int
-parseNat t                 = do a <- parseConst t; parse nat a
-
-parsePnat :: TermS -> Maybe Int
-parsePnat t                = do a <- parseConst t; parse pnat a
-
-parseInt :: TermS -> Maybe Int
-parseInt t                 = do a <- parseConst t; parse int a
-
-parseReal :: TermS -> Maybe Double
-parseReal t                = do a <- parseConst t; parse real a
-
-parseReals :: TermS -> TermS -> Maybe (Double,Double)
-parseReals t u             = do a <- parseReal t; b <- parseReal u; Just (a,b)
-
-parseDouble t   = do a <- parseConst t; parse double a  -- not used
+parseNat t = do a <- parseConst t; parse nat a
 
 parseNats :: TermS -> Maybe [Int]
-parseNats                  = parseList parseNat
+parseNats = parseList parseNat
+
+parsePnat :: TermS -> Maybe Int
+parsePnat t = do a <- parseConst t; parse pnat a
+
+parseInt :: TermS -> Maybe Int
+parseInt t = do a <- parseConst t; parse int a
+
+parseReal :: TermS -> Maybe Double
+parseReal t = do a <- parseConst t; parse real a
+ 
+parseReals :: TermS -> TermS -> Maybe (Double,Double)
+parseReals t u = do a <- parseReal t; b <- parseReal u; Just (a,b)
 
 parseIntQuad :: TermS -> Maybe (Int, Int, Int, Int)
-parseIntQuad t      = do F "()" [i,j,b,h] <- Just t; i <- parseInt i
-                         j <- parseInt j; b <- parseInt b; h <- parseInt h
-                         Just (i,j,b,h)
+parseIntQuad t = do F "()" [i,j,b,h] <- Just t; i <- parseInt i; j <- parseInt j
+                    b <- parseInt b; h <- parseInt h; Just (i,j,b,h)
 
 parseRealReal :: TermS -> Maybe (Double, Double)
 parseRealReal t = do F "()" [r,s] <- Just t; r <- parseReal r; s <- parseReal s
                      Just (r,s)
 
 parseRealPair :: TermS -> Maybe ((Double, Double), Double)
-parseRealPair t     = do F "()" [p,r] <- Just t; p <- parseRealReal p
-                         r <- parseReal r; Just (p,r)
+parseRealPair t = do F "()" [p,r] <- Just t; p <- parseRealReal p
+                     r <- parseReal r; Just (p,r)
 
 parseColor :: TermS -> Maybe Color
-parseColor      = parse color . root
+parseColor = parse color . root
 
 parseRenaming :: [TermS] -> Maybe (String -> String)
 parseRenaming r = do r <- mapM f r; Just $ fold2 upd id (map fst r) $ map snd r
@@ -3262,6 +3271,22 @@ parseLinEqs t          = do eq <- parseLinEq t; Just [eq]
 parseLinEq :: TermS -> Maybe LinEq
 parseLinEq t = do F "=" [t,u] <- Just t; ps <- parseProds t; b <- parseReal u
                   Just (ps,b)
+                  
+-- used by Epaint > linearEqs
+
+parseProds :: TermS -> Maybe [(Double,String)]
+parseProds (F "+" [ts,t]) = do ps <- parseProds ts; p <- parseProd t
+                               Just $ ps++[p]
+parseProds (F "-" [ts,t]) = do ps <- parseProds ts; (a,x) <- parseProd t
+                               Just $ ps++[(-a,x)]
+parseProds t              = do p <- parseProd t; Just [p]
+
+parseProd :: TermS -> Maybe (Double,String)
+parseProd (F "*" [t,V x]) = do a <- parseReal t; guard $ a /= 0; Just (a,x)
+parseProd (F "-" [V x])   = Just (-1,x)
+parseProd t               = do V x <- Just t; Just (1,x)
+
+-- linear functions
 
 parseLin :: TermS -> Maybe LinEq
 parseLin (F "lin" [F "+" [t,u]]) | just b = do ps <- parseProds t
@@ -3272,20 +3297,9 @@ parseLin (F "lin" [F "-" [t,u]]) | just b = do ps <- parseProds t
                                             where b = parseReal u
 parseLin t = do F "lin" [t] <- Just t; ps <- parseProds t; Just (ps,0)
 
-parseProds :: TermS -> Maybe [(Double, String)]
-parseProds (F "+" [ts,t]) = do ps <- parseProds ts; p <- parseProd t
-                               Just $ ps++[p]
-parseProds (F "-" [ts,t]) = do ps <- parseProds ts; (a,x) <- parseProd t
-                               Just $ ps++[(-a,x)]
-parseProds t              = do p <- parseProd t; Just [p]
+-- used by Esolve > linAlg
 
-parseProd :: TermS -> Maybe (Double, String)
-parseProd (F "*" [t,V x]) = do a <- parseReal t; guard $ a /= 0; Just (a,x)
-parseProd (F "-" [V x])   = Just (-1,x)
-parseProd t               = do V x <- Just t; Just (1,x)
-
-parseRel :: [TermS]
-            -> TermS -> Maybe [(TermS, TermS)]
+parseRel :: [TermS] -> TermS -> Maybe [(TermS, TermS)]
 parseRel sts t = do F "rel" [t] <- Just t
                     rels <- parseList f t; Just $ concat rels
                  where f (F "()" [t,F "[]" ts]) | (t:ts) `subset` sts  
@@ -3294,7 +3308,10 @@ parseRel sts t = do F "rel" [t] <- Just t
                                 guard $ t `elem` sts && u `elem` sts
                                 Just [(t,u)]
 
--- * Signatures, Horn and Co-Horn clauses
+-- used by Esolve > relAlg
+
+-- SIGNATURES, HORN and CO-HORN CLAUSES
+
 iniSymbols :: ([String], [String], [String], [String], [a], [b])
 iniSymbols = (iniPreds,[],iniConstructs,iniDefuncts,[],[])
 
@@ -3314,41 +3331,39 @@ iniPreds = words "_ $ <= >= < > >> ~ all any allany disjoint `in` `NOTin`" ++
         -- words ". () [] : ++ filterL filter flip foldl1 foldl foldr1" ++
         -- words "foldr lsec mapG map prodL rsec zipWith"
 
-termBuilders = words "bool filter gaussI gauss select tjoin"
+termBuilders = words "bool filter select gaussI gauss tjoin"
             -- words "initState runState postflow subsflow"
 
 data Sig = Sig {
-           sig_isPred,sig_isCopred,sig_isConstruct,sig_isDefunct,sig_isFovar,
-           sig_isHovar,sig_blocked    :: String -> Bool,
-           sig_hovarRel               :: RelFun String,
-           sig_simpls,sig_transitions :: Srules,
-           sig_states,sig_atoms,sig_labels,sig_inits
-                                      :: [TermS],     -- components
-           sig_trans,sig_value        :: [[Int]],     -- of a
-           sig_transL,sig_valueL      :: [[[Int]]],   -- Kripke model
-           sig_notSafe                :: Bool}
+           isPred,isCopred,isConstruct,isDefunct,isFovar,
+           isHovar,blocked           :: String -> Bool,
+           hovarRel                  :: RelFun String,
+           simpls,transitions        :: Srules,
+           states,atoms,labels,inits :: [TermS],     -- components
+           trans,value               :: [[Int]],     -- of a
+           transL,valueL             :: [[[Int]]],   -- Kripke model
+           notSafe                   :: Bool}
 
 preds,out :: Sig -> [[Int]]
-preds sig = invertRel (sig&sig_trans) (sig&sig_states) 
-out sig   = invertRel (sig&sig_value) (sig&sig_states) 
+preds sig = invertRel (trans sig) $ states sig
+out sig   = invertRel (value sig) $ states sig 
 
 predsL,outL :: Sig -> [[[Int]]] 
-predsL sig = invertRelL (sig&sig_transL) (sig&sig_labels) (sig&sig_states) 
-outL sig   = invertRelL (sig&sig_valueL) (sig&sig_labels) (sig&sig_states) 
+predsL sig = invertRelL (transL sig) (labels sig) $ states sig 
+outL sig   = invertRelL (valueL sig) (labels sig) $ states sig
 
 showSLA :: Sig -> [[String]]
-showSLA sig = map (map showTerm0) [(sig&sig_states),(sig&sig_labels),(sig&sig_atoms)]
+showSLA sig = map (map showTerm0) [states sig,labels sig,atoms sig]
 
 predSig :: [String] -> Sig
-predSig preds = Sig {
-                       sig_isPred = (`elem` preds), sig_isCopred = \_ -> False,
-                       sig_isConstruct = \_ -> False, sig_isDefunct = \_ -> False,
-                       sig_isFovar = \_ -> False, sig_isHovar = \_ -> False,
-                       sig_notSafe = False,
-                       sig_blocked = \_ -> False, sig_hovarRel = \_ _ -> False,
-                       sig_simpls = [], sig_transitions = [], sig_states = [],
-                       sig_atoms = [], sig_labels = [], sig_trans = [], sig_transL = [],
-                       sig_value = [], sig_valueL = [], sig_inits = []}
+predSig preds = Sig {  isPred = (`elem` preds), isCopred = \_ -> False,
+                       isConstruct = \_ -> False, isDefunct = \_ -> False,
+                       isFovar = \_ -> False, isHovar = \_ -> False,
+                       notSafe = False,
+                       blocked = \_ -> False, hovarRel = \_ _ -> False,
+                       simpls = [], transitions = [], states = [],
+                       atoms = [], labels = [], trans = [], transL = [],
+                       value = [], valueL = [], inits = []}
 
 -- used by Ecom > enumerator
 
@@ -3398,18 +3413,18 @@ graphToRules sig labels t = do guard $ isF t && root t `notElem` labels
 -- used by buildKripke 3
 
 applySignatureMap sig sig' f t@(V x) | f x /= x         = Just $ V $ f x
-                                     | (sig'&sig_isFovar) x = Just t
+                                     | isFovar sig' x = Just t
                                      | True             = Nothing
 applySignatureMap sig sig' f (F x ts) =
-        do ts <- mapM (applySignatureMap sig sig' f) ts
-           if f x /= x then Just $ F (f x) ts
-                       else do guard $ logical x ||
-                                       functional sig x && functional sig' x ||
-                                       relational sig x && relational sig' x ||
-                                       (sig&sig_isHovar) x && (sig'&sig_isHovar) x
-                               Just $ F x ts
+         do ts <- mapM (applySignatureMap sig sig' f) ts
+            if f x /= x then Just $ F (f x) ts
+                        else do guard $ logical x ||
+                                        functional sig x && functional sig' x ||
+                                        relational sig x && relational sig' x ||
+                                        isHovar sig x && isHovar sig x
+                                Just $ F x ts
 
-defuncts sig (F x ts) = if (sig&sig_isDefunct) x then x:fs else fs
+defuncts sig (F x ts) = if isDefunct sig x then x:fs else fs
                         where fs = concatMap (defuncts sig) ts
 defuncts _ _          = []
 
@@ -3465,8 +3480,9 @@ updArgs t _              = t
 
 mkBinder op xs t = F (op ++ ' ':unwords (mkSet xs)) [t]
 
--- unCurry (f(t1)...(tn)) returns (f,[t1,...,tn]).
-unCurry :: TermS -> (String, [[TermS]])
+-- unCurry (f(ts1)...(tsn)) returns (f,[ts1,...,tsn]).
+
+unCurry :: TermS -> (String,[[TermS]])
 unCurry (F "$" [t,u]) = (x,tss++[ts]) where (x,tss) = unCurry t
                                             ts = case u of F "()" us -> us
                                                            _ -> [u]
@@ -3549,13 +3565,12 @@ isTrans _                      = False
 
 isHorn :: Sig -> TermS -> Bool
 isHorn sig (F "<===" [t,_]) = isHorn sig t
-isHorn sig (F "=" [t,_])    = (sig&sig_isDefunct) $ getOp t
-isHorn sig t                      = (sig&sig_isPred) $ getOp t
---isHorn _ _                         = False
+isHorn sig (F "=" [t,_])    = isDefunct sig $ getOp t
+isHorn sig t                = isPred sig $ getOp t
 
 isCoHorn :: Sig -> TermS -> Bool
-isCoHorn sig (F "===>" [t,_]) = (sig&sig_isCopred) $ getOp t
-isCoHorn _ _                   = False
+isCoHorn sig (F "===>" [t,_]) = isCopred sig $ getOp t
+isCoHorn _ _                  = False
 
 isAxiom :: Sig -> TermS -> Bool
 isAxiom sig = isTrans ||| isHorn sig ||| isCoHorn sig
@@ -3671,15 +3686,15 @@ noSimplsFor xs = filter f where f (F "==>" [_,cl])  = f cl
 -- redex.
 
 filterClauses sig redex = filter f where
-                         f ax = (isAxiom sig ||| isTheorem) ax &&
-                                any (flip any (anchors ax) . g) (anchors redex)
-                         g x = (x ==) ||| h x ||| flip h x
-                         h x y = (sig&sig_isFovar) x || (sig&sig_hovarRel) x y
-                         anchors (F "==>" [_,cl]) = anchors cl
-                         anchors (F x [t,_]) | x `elem` words "===> <=== = ->"
-                                            = anchors t
-                         anchors (F "^" ts) = concatMap anchors ts
-                         anchors t          = [getOp t]
+                          f ax = (isAxiom sig ||| isTheorem) ax &&
+                                 any (flip any (anchors ax) . g) (anchors redex)
+                          g x = (x ==) ||| h x ||| flip h x
+                          h x y = isFovar sig x || hovarRel sig x y
+                          anchors (F "==>" [_,cl]) = anchors cl
+                          anchors (F x [t,_]) | x `elem` words "===> <=== = ->"
+                                             = anchors t
+                          anchors (F "^" ts) = concatMap anchors ts
+                          anchors t          = [getOp t]
 
 -- used by Esolve > applyLoop/Random and Ecom > narrowPar,rewritePar
 
@@ -3687,13 +3702,13 @@ filterClauses sig redex = filter f where
 
 turnIntoUndef :: Sig -> TermS -> [Int] -> TermS -> Maybe TermS
 turnIntoUndef sig t p redex =
-   do guard $ isF redex && and (map (all $ isNormal sig) tss)
-      if x `notElem` iniPreds && (sig&sig_isPred) x then Just mkFalse
-      else if (sig&sig_isCopred) x then Just mkTrue
-           else do guard $ notnull p && root (getSubterm t $ init p) == "->" ||
-                           x `notElem` iniDefuncts && (sig&sig_isDefunct) x
-                   Just unit
-   where (x,tss) = unCurry redex
+       do guard $ isF redex && and (map (all $ isNormal sig) tss)
+          if x `notElem` iniPreds && isPred sig x then Just mkFalse
+          else if isCopred sig x then Just mkTrue
+               else do guard $ notnull p && root (getSubterm t $ init p) == "->"
+                               || x `notElem` iniDefuncts && isDefunct sig x
+                       Just unit
+       where (x,tss) = unCurry redex
 
 -- used by Esolve > applyLoop
 
@@ -3727,6 +3742,17 @@ mkConst = leaf . show
 mkConsts :: Show a => [a] -> TermS
 mkConsts = mkList . map mkConst
 
+chgDouble :: String -> String
+chgDouble a = if just d then f $ get d else a 
+              where d = parse double a
+                    f d = reverse $ g $ dropWhile (== '0') $  
+                          reverse $ showFFloat (Just 8) d ""
+                       -- show $ double2Float d
+                    g ('.':str) = str
+                    g str       = str
+                    
+-- used by showTerm and Ecom > drawThis,showSubtreePicts,showTreePicts
+
 mkBool :: TermS -> TermS
 mkBool t =  F "bool" [t]
 
@@ -3758,23 +3784,23 @@ mkGets xs t = case xs of [_] -> [t]; _ -> map f $ indices_ xs
 
 mkLin :: LinEq -> TermS
 mkLin (ps,b) = F "lin" [if b < 0 then F "-" [mkProds ps,mkConst $ -b]
-                                  else if b == 0 then mkProds ps
-                                       else F "+" [mkProds ps,mkConst b]]
+                                 else if b == 0 then mkProds ps
+                                      else F "+" [mkProds ps,mkConst b]]
 
 mkLinEqs :: [LinEq] -> TermS
 mkLinEqs eqs = F "&" $ map mkLinEq eqs
-                where mkLinEq (ps,b) = F "=" [mkProds ps,mkConst b]
+               where mkLinEq (ps,b) = F "=" [mkProds ps,mkConst b]
 
 mkProds :: [(Double,String)] -> TermS
-mkProds [p]            = mkProd p
-mkProds ps | a < 0     = F "-" [mkProds qs,mkProd (-a,x)]
-           | otherwise = F "+" [mkProds qs,mkProd p]
-                      where (qs,p@(a,x)) = (init ps,last ps)
+mkProds [p]        = mkProd p
+mkProds ps | a < 0 = F "-" [mkProds qs,mkProd (-a,x)]
+           | True  = F "+" [mkProds qs,mkProd p]
+                     where (qs,p@(a,x)) = (init ps,last ps)
 
 mkProd :: (Double,String) -> TermS
-mkProd (a,x) | a == 1    = V x
-             | a == -1   = F "-" [V x]
-             | otherwise = F "*" [mkConst a,V x]
+mkProd (a,x) | a == 1  = V x
+             | a == -1 = F "-" [V x]
+             | True    = F "*" [mkConst a,V x]
 
 -- mkRelConsts rel returns the representation of a binary relation rel as a 
 -- list of type [TermS].
@@ -3811,8 +3837,7 @@ mkRel2ConstsI as bs cs = concat . zipWith f [0..]
 -- used by Ecom > showRelation
 
 pairsToInts :: [TermS] -> PairsT -> [TermS] -> [[Int]]
-pairsToInts ts ps = map f
-                    where f t = getIndices (`elem` (get $ lookup t ps)) ts
+pairsToInts ts ps = map f where f t = getIndices (`elem` (get $ lookup t ps)) ts
 
 tripsToInts :: [TermS] -> [TermS] -> TriplesT -> [TermS] -> [[[Int]]]
 tripsToInts ts us ps = map f
@@ -3877,33 +3902,32 @@ mkFalse = F "False" []
 mkNot :: Sig -> TermS -> TermS
 mkNot _ t | quantConst "True" t   = mkFalse
 mkNot _ t | quantConst "False" t  = mkTrue
-mkNot _ (F "Not" [t])                   = t
-mkNot sig (F "==>" [t,u])           = mkConjunct [t,mkNot sig u]
-mkNot sig (F "|" ts)                   = mkConjunct $ map (mkNot sig) ts
-mkNot sig (F "&" ts)                   = mkDisjunct $ map (mkNot sig) ts
+mkNot _ (F "Not" [t])             = t
+mkNot sig (F "==>" [t,u])         = mkConjunct [t,mkNot sig u]
+mkNot sig (F "|" ts)              = mkConjunct $ map (mkNot sig) ts
+mkNot sig (F "&" ts)              = mkDisjunct $ map (mkNot sig) ts
 mkNot sig (F ('A':'n':'y':x) [t]) = mkAll (words x) $ mkNot sig t
 mkNot sig (F ('A':'l':'l':x) [t]) = mkAny (words x) $ mkNot sig t
--- mkNot sig (F "$" [t,u])           = F "$" [mkNot sig t,u]
-mkNot sig (F x ts) | declaredRel sig z && not ((sig&sig_isHovar) x)
-                                   = F z ts where z = mkComplSymbol x
-mkNot _ t                                = F "Not" [t]
+mkNot sig (F x ts) | declaredRel sig z && not (isHovar sig x)
+                                  = F z ts where z = mkComplSymbol x
+mkNot _ t                         = F "Not" [t]
 
 mkImpl :: TermS -> TermS -> TermS
 mkImpl t u | quantConst "True" t  = u
            | quantConst "False" t = mkTrue
            | quantConst "True" u  = mkTrue
            | eqTerm t u           = mkTrue
-           | otherwise            = F "==>" [t, u]
+           | True                 = F "==>" [t, u]
 
 premise :: TermS -> TermS
 premise (F ('A':'l':'l':_) [t]) = premise t
-premise (F "==>" [t,_])          = t
-premise t                          = t
+premise (F "==>" [t,_])         = t
+premise t                       = t
 
 conclusion :: TermS -> TermS
 conclusion (F ('A':'l':'l':_) [t]) = conclusion t
-conclusion (F "==>" [_,t])             = t
-conclusion t                             = t
+conclusion (F "==>" [_,t])         = t
+conclusion t                       = t
 
 mkEq, mkNeq, mkGr, mkTrans :: TermS -> TermS -> TermS
 mkEq t u    = F "=" [t,u]
@@ -4077,35 +4101,29 @@ derivedFun _ f xs i lg axs =
 
 -- mkInvs True/False constructs the conditions on a Hoare/subgoal invariant INV.
 
-mkInvs :: Bool
-          -> String
-          -> [TermS]
-          -> [TermS]
-          -> [TermS]
-          -> [TermS]
-          -> TermS
-          -> TermS
-          -> TermS
+mkInvs :: Bool -> String -> [TermS] -> [TermS] -> [TermS] -> [TermS] -> TermS
+               -> TermS -> TermS
 mkInvs hoare loop as bs cs inits d conc = F "&" [factor1,factor2]
-         where xs = as++bs
-               ys = bs++cs
-               eq = F "=" [F loop ys,d]
-               arith_inv = F "INV"
-               (factor1,factor2) = if hoare 
-                                   then (arith_inv (xs++inits),
-                                         mkImpl (F "&" [eq,arith_inv (xs++cs)]) conc) 
-                                   else (mkImpl (arith_inv (bs++inits++[d])) conc,
-                                         mkImpl eq (arith_inv (ys++[d])))
+          where xs = as++bs
+                ys = bs++cs
+                eq = F "=" [F loop ys,d]
+                inv = F "INV"
+                (factor1,factor2) = if hoare 
+                                    then (inv (xs++inits),
+                                          mkImpl (F "&" [eq,inv (xs++cs)]) conc) 
+                                    else (mkImpl (inv (bs++inits++[d])) conc,
+                                          mkImpl eq (inv (ys++[d])))
 
 -- used by Ecom > createInvariant
 
 -- transClosure ts applies rules to ts that employ the transitivity of the
 -- relation between the elements of ts. 
+
 transClosure :: [TermS] -> Maybe TermS
 transClosure [t@(F _ [_,_])] = Just t
 transClosure (t:ts)          = do u <- transClosure ts
                                   (F x [l,r],F y [l',r']) <- Just (t,u)
-                                  guard $ isRel x && x == y && eqTerm r l'
+                                  guard $ isTransRel x && x == y && eqTerm r l'
                                   Just $ F x [l,r']
 transClosure _               = Nothing
 
@@ -4217,25 +4235,26 @@ hillTerm col lab t = un where un@(_,n) = f 0 t
 -- cutTree max t ps col qs hides each subtree of t whose root position is in qs 
 -- or greater than max (wrt the heap order). Each subtrees of t whose root 
 -- position is in ps is colored with col.
+
 cutTree :: Int -> TermS -> [[Int]] -> String -> [[Int]] -> TermS
-cutTree max t ps col qs = mapTP c [] $
-       fold2 replace0 (head $ cutTreeL [t] 0) qs $ map (hide . getSubterm t) qs
-   where c p x = if p `elem` ps then col++'_':delCol x else x
-         f p (V x)    = V $ c p x
-         f _ t        = t                                                 
-         cutTreeL [] _ = []
-         cutTreeL ts n = vs where (roots,tss,lgs) = unzip3 $ map g ts
-                                  us = cutTreeL (concat tss) (n+length ts)
-                                  (vs,_,_) = fold2 h ([],us,n+1) roots lgs
-         g t = ((root t,isV t),ts,length ts) where ts = subterms t
-         h (ts,us,n) (x,isv) lg = (ts++[if isv then V y else F y subs],
-                                   drop lg us,n+1)
-                     where (y,subs) = (if n < max then x else '@':x,take lg us)
-         hide t@(F ('@':_) _) = t
-         hide (F x ts)        = F ('@':x) ts   
-         hide t@(V ('@':_))   = t
-         hide (V x)           = V ('@':x)
-         hide t               = t
+cutTree max t ps col qs = mapTP c [] $ fold2 replace0 (head $ cutTreeL [t] 0) qs
+                                     $ map (hide . getSubterm t) qs
+        where c p x = if p `elem` ps then col++'_':delCol x else x
+              f p (V x)    = V $ c p x
+              f _ t        = t                                                 
+              cutTreeL [] _ = []
+              cutTreeL ts n = vs where (roots,tss,lgs) = unzip3 $ map g ts
+                                       us = cutTreeL (concat tss) (n+length ts)
+                                       (vs,_,_) = fold2 h ([],us,n+1) roots lgs
+              g t = ((root t,isV t),ts,length ts) where ts = subterms t
+              h (ts,us,n) (x,isv) lg = (ts++[if isv then V y else F y subs],
+                                        drop lg us,n+1)
+                      where (y,subs) = (if n < max then x else '@':x,take lg us)
+              hide t@(F ('@':_) _) = t
+              hide (F x ts)        = F ('@':x) ts   
+              hide t@(V ('@':_))   = t
+              hide (V x)           = V ('@':x)
+              hide t               = t
 
 -- used by Ecom > drawThis
 
@@ -4255,26 +4274,25 @@ moreTree t = case f [] t of
 -- removeNonRoot t p removes the node at position p of t. removeNonRoot is used 
 
 removeNonRoot :: TermS -> [Int] -> TermS
-removeNonRoot t p = removeX $ chgPoss $ replace0 t q 
-                            $ if isV u then u 
-                                       else F x $ take n us++vs++drop (n+1) us
-  where (q,n) = (init p,last p)
-        snp = length p; np = snp-1
-        u = getSubterm t q
-        vs = subterms $ getSubterm t p
-        incr = length vs-1
-        midPoss = [r | r <- noRefPoss t, p << r]
-        rightPoss = [r | r <- noRefPoss t, q << r, n < r!!np]
-        newM r = take np r++r!!snp+n:drop (snp+1) r
-        newR r = take np r++r!!np+incr:drop snp r
-        (x,us) = (root u,subterms u)
-        chgPoss (F x ts) = F x $ map chgPoss ts
-        chgPoss (V x) | r == p = V "XXX"
-                      | isPos x && r `elem` midPoss   = mkPos $ newM r
-                      | isPos x && r `elem` rightPoss = mkPos $ newR r
-                                                        where r = getPos x
-        chgPoss t = t
-        removeX t = lshiftPos t [p | p <- noRefPoss t, label t p == "XXX"]
+removeNonRoot t p = removeX $ chgPoss $ replace0 t q $
+                         if isV u then u else F x $ take n us++vs++drop (n+1) us
+        where (q,n) = (init p,last p)
+              snp = length p; np = snp-1
+              u = getSubterm t q
+              vs = subterms $ getSubterm t p
+              incr = length vs-1
+              midPoss = [r | r <- noRefPoss t, p << r]
+              rightPoss = [r | r <- noRefPoss t, q << r, n < r!!np]
+              newM r = take np r++r!!snp+n:drop (snp+1) r
+              newR r = take np r++r!!np+incr:drop snp r
+              (x,us) = (root u,subterms u)
+              chgPoss (F x ts) = F x $ map chgPoss ts
+              chgPoss (V x) | r == p = V "XXX"
+                            | isPos x && r `elem` midPoss   = mkPos $ newM r
+                            | isPos x && r `elem` rightPoss = mkPos $ newR r
+                                                              where r = getPos x
+              chgPoss t = t
+              removeX t = lshiftPos t [p | p <- noRefPoss t, label t p == "XXX"]
 
 -- used by Ecom > removeNode
 
@@ -4298,7 +4316,7 @@ changeTerm t u ps =
                                 0 -> Wellformed $ f t qs t2 rs
                                 1 -> Bad $ "Add " ++ unstr k
                                 _ -> Bad $ "Remove " ++ unstr (n-m+1)
-                        else Bad "Select further subtrees below the first arith_one!"
+                        else Bad "Select further subtrees below the first one!"
     where m = length ps; p:qs = ps
           t1 = foldl f t ps where f t p = replace1 t p u
           t2 = replace1 t p u; rs = map (p++) underlines
@@ -4453,7 +4471,7 @@ colorClasses :: Sig -> TermS -> TermS
 colorClasses sig = f where
           f (F a ts) = F (if a `notElem` sts then a else setColor a) $ map f ts
           f t        = t
-          sts = map showTerm0 (sig&sig_states)
+          sts = map showTerm0 $ states sig
           part = [s | s@(_:_:_) <- partition (indices_ sts) $ bisim sig]
           n = length part
           setColor a = case searchGet (elem $ getInd sts a) part of
@@ -4863,6 +4881,7 @@ setPointers t (h,dom) = f [] t
 
 -- | @chgPart part nodes@ adds each node @n@ of @nodes@ to part by setting @n@
 -- and all equivalent nodes to the same h-value.
+
 chgPart :: Partition -> [Node] -> Partition
 chgPart part = f
    where f (x:s) = g x s $ f s
@@ -4879,9 +4898,9 @@ chgPart part = f
 -- | @mkNodes t@ translates @t@ into a list of all triples consisting of the
 -- position, the label and the positions of the direct successors of each node
 -- of @t@.
-mkNodes
-    :: TermS -- ^ t
-    -> [Node]
+
+mkNodes :: TermS -- type of t
+        -> [Node]
 mkNodes (V x)    = [([],x,[])]
 mkNodes (F x ts) = ([],x,map (:[]) is):concatMap h is
                    where is = indices_ ts
@@ -4932,7 +4951,7 @@ collapseVars sig xs t = collapseSubs pred t where
 -- used by Esolve > bodyAndSub,expandFix,simplifyS "subst" and
 -- Ecom > collapseVarsCom
 
--- expand{One} n t p expands u = getSubterm t p by dereferencing all {arith_one}
+-- expand{One} n t p expands u = getSubterm t p by dereferencing all {one}
 -- pointer(s) to the same subterm. Each circle of u is unfolded n times.
 
 expand,expandOne :: Int -> TermS -> [Int] -> TermS
@@ -4962,7 +4981,7 @@ expandOne n t p = pr1 $ f n [] t p $ getSubterm t p where
                                         _ -> f n ((q,p):ps) (replace t p v) p v
        f n ps _ _ u = (u,n,ps)
 
--- used by separateTerms and Ecom > "expand arith_one"
+-- used by separateTerms and Ecom > "expand one"
 
 -- expandInto t r expands t at all pointers into the subterm of t at position r.
 
@@ -5088,13 +5107,13 @@ type VarCounter = String -> Int
 
 -- | @splitVar x@ splits @x@ into its non-numerical prefix and its numerical
 -- suffix.
+
 splitVar :: String -> (String,String,Int,Bool)
 splitVar x = (base,ds,if null ds then 0 else read ds+1,b)
       where b = just $ parse infixWord x
             (base,ds) = span (not . isDigit) $ if b then init $ tail x else f x
             f ('!':x) = x
             f x = x
-
                       
 -- getSubAwayFrom t xs ys renames the variables of xs `meet` ys away from the
 -- symbols of t.
@@ -5220,6 +5239,7 @@ getPrevious x = if b then '`':y++"`" else y
 -- * Unification of terms and formulas
 
 -- | Result returns unifiers or error messages.
+
 data Result a = Def a | BadOrder | Circle [Int] [Int] | NoPos [Int] | NoUni | 
                 OcFailed String | ParUni SubstS [String] | TotUni SubstS
 
@@ -5263,7 +5283,7 @@ unify0 bag sig xs u redex t p = case unify bag sig xs V u redex u t [] p of
 -- The Boolean result indicates whether a total (True) or only a partial unifier
 -- (False) has been found. Partial unifiers create redex instances, but not 
 -- reducts. However, as soon as a partial unifier can be completed to a total
--- arith_one, the corresponding narrowing step will indeed be executed ("needed
+-- one, the corresponding narrowing step will indeed be executed ("needed
 -- narrowing").
 
 unify bag sig xs f = h where
@@ -5292,9 +5312,9 @@ unify bag sig xs f = h where
 
  unifyFuns x ts y us t t' p q
   | x == y           = if b then unifyM ts us t t' ps qs else NoUni
-  | (sig&sig_isHovar) x && (sig&sig_isHovar) y && b
+  | isHovar sig x && isHovar sig y && b
                      = if x `elem` xs then g x y else g y x
-  | (sig&sig_hovarRel) x y = if b then g y x
+  | hovarRel sig x y = if b then g y x
                        else if null ts then Def (sub2 x y,True) else NoUni
              where b = length ts == length us
                    unifyM = if bag && permutative x then unifyBag
@@ -5308,7 +5328,7 @@ unify bag sig xs f = h where
  unifyFuns "[]" (u:us) ":" [v,v'] t t' p q
               = unifyList bag sig xs f [u,mkList us] [v,v'] t t' (g p) $ g q
                 where g p = [p++[0],p++[1]]
- unifyFuns x _ y _ _ _ _ _ = if (sig&sig_isDefunct) x && not ((sig&sig_isHovar) y)
+ unifyFuns x _ y _ _ _ _ _ = if isDefunct sig x && not (isHovar sig y)
                              then Def (f,False) else BadOrder
 
  unifyBag [] _ _ _ _ _  = Def (f,True)
@@ -5364,16 +5384,14 @@ unifyS sig xs = h where
  h t u               = do guard $ bothHidden t u; Just V
 
  unifyFuns x ts y us
-  | (sig&sig_hovarRel) x y && x `elem` xs
-                = if b then do g <- unifyList (map (>>>f) ts) $ map (>>>f) us
-                               Just $ f `andThen` g
-                          else do
-                               guard $ null ts
-                               Just $ F y us `for` x
-  | x == y && b = unifyM ts us
-                  where b = length ts == length us
-                        f = F y [] `for` x
-                        unifyM = if permutative x then unifyBag else unifyList
+    | hovarRel sig x y && x `elem` xs
+                  = if b then do g <- unifyList (map (>>>f) ts) $ map (>>>f) us
+                                 Just $ f `andThen` g
+                         else do guard $ null ts; Just $ F y us `for` x
+    | x == y && b = unifyM ts us
+                    where b = length ts == length us
+                          f = F y [] `for` x
+                          unifyM = if permutative x then unifyBag else unifyList
  unifyFuns x _ "suc" [t] | just n = h (mkConst $ get n-1) t
                                     where n = parse pnat x
  unifyFuns "[]" (t:ts) ":" [u,v]  = unifyList [t,mkList ts] [u,v]
@@ -5405,7 +5423,7 @@ match sig xs = h []
   where h _ (V x) (V y) | x == y  = Just V
         h p t (V x) | x `elem` xs = Just $ dropFromPossC 'h' p t `for` x
         h p t@(F x ts) (F y us)
-          | (sig&sig_hovarRel) y x && y `elem` xs =
+          | hovarRel sig y x && y `elem` xs =
                     if b then do g <- match' ps (map (>>>f) ts) $ map (>>>f) us
                                  Just $ f `andThen` g
                             else do
@@ -5462,10 +5480,10 @@ onlyRenamed sig t u = just (match sig (frees sig u) t u) &&
 -- has been treated as a bag. 
 
 matchSubs
-    :: Sig -- ^ sig
-    -> [String] -- ^ xs
-    -> TermS -- ^ t
-    -> TermS -- ^ u
+    :: Sig -- type of sig
+    -> [String] -- type of xs
+    -> TermS -- type of t
+    -> TermS -- type of u
     -> Maybe (SubstS,[TermS],[Int],Bool)
 matchSubs sig xs t u = case (t,u) of
                             (F "()" [t,lab],F "()" [u,pat])
@@ -5508,12 +5526,12 @@ mkSizes canv font xs = do
     size <- Haskell.fromMaybe 0 <$> fontDescriptionGetSize font
     return (h size, truncate . g)
                   where lg = length . delQuotes
-                        h n | n < 7     = 6
-                            | n < 8     = 7
-                            | n < 10    = 8
-                            | n < 13    = 10
-                            | n < 16    = 13
-                            | otherwise = 16
+                        h n | n < 7  = 6
+                            | n < 8  = 7
+                            | n < 10 = 8
+                            | n < 13 = 10
+                            | n < 16 = 13
+                            | True   = 16
 
 -- used by Epaint and Ecom
 
@@ -5537,21 +5555,22 @@ coordTree w (hor,ver) p = alignLeaves . f p
          f (x,y) (V ('@':_))   = V ("@",(x+nodeWidth w "@",y))
          f (x,y) (V a)         = V (a,(x+nodeWidth w a,y))
          f (x,y) (F ('@':_) _) = F ("@",(x+nodeWidth w "@",y)) []
-         f (x,y) (F a [])      = F (a,(x+nodeWidth w a,y)) []
-         f (x,y) (F a ts) = if diff <= 0 then ct'
-                                         else transTree1 (diff`div`2) ct'
-                 where diff = nodeWidth w a-foldT h ct+x
-                       ct:cts = map (f (x,y+ver)) ts
-                       cts' = transTrees w hor ct cts
-                       ct' = F (a,((g (head cts')+g (last cts'))`div`2,y)) cts'
-                       g = fst . snd . root
-                       h (a,(x,_)) xs = maximum $ x+nodeWidth w a:xs
+         f (x,y) (F a [])      = F (a,(x+nodeWidth w a,y)) [] where
+         f (x,y) (F a ts)      = if diff <= 0 then ct'
+                                              else transTree1 (diff`div`2) ct'
+                  where diff = nodeWidth w a-foldT h ct+x
+                        ct:cts = map (f (x,y+ver)) ts
+                        cts' = transTrees w hor ct cts
+                        ct' = F (a,((g (head cts')+g (last cts'))`div`2,y)) cts'
+                        g = fst . snd . root
+                        h (a,(x,_)) xs = maximum $ x+nodeWidth w a:xs         
 
 -- transTrees w hor ct cts orders the trees of ct:cts with a horizontal space of
 -- hor units between adjacent trees. transTrees takes into account different 
 -- heights of adjacent trees by shifting them to the left or to the right such 
 -- that nodes on low levels of a tree may occur below a neighbour with fewer 
 -- levels.
+
 transTrees :: (String -> Int) -> Int -> TermSP -> [TermSP] -> [TermSP]
 transTrees w hor ct = f [ct]
       where f us (t:ts) = if d < 0 then f (map (transTree1 $ -d) us++[t]) ts
@@ -5581,26 +5600,26 @@ transLeaves w hor ts t = loop hor
                           [x1,x2] = map (fst . snd . root) [last us,t]
                           [w1,w2] = map (nodeWidth w . fst . root) [last us,t]
 
-{-|
-    @shrinkTree y ver t@ shrinks @t@ vertically such that ver becomes the
-    distance between a node and its direct sucessors (0,upb). @y@ is the
-    y-coordinate of the root.
--}
+-- @shrinkTree y ver t@ shrinks @t@ vertically such that ver becomes the
+-- distance between a node and its direct sucessors (0,upb). @y@ is the
+-- y-coordinate of the root.
+
 shrinkTree
     :: Num a
-    => a -- ^ y
-    -> a -- ^ ver
-    -> Term (b, (c, d)) -- ^ t
+    => a -- type of y
+    -> a -- type of ver
+    -> Term (b, (c, d)) -- type of t
     -> Term (b, (c, a))
 shrinkTree y _ver (V (a,(x,_)))    = V (a,(x,y))
 shrinkTree y ver (F (a,(x,_)) cts) = F (a,(x,y)) $
                                        map (shrinkTree (y+ver) ver) cts
 
 -- | @cTree t ct@ replaces the node entries of @t@ by the coordinates of @ct@.
+
 cTree
     :: Show c
-    => Term a -- ^ t
-    -> Term (b, c) -- ^ ct
+    => Term a -- type of t
+    -> Term (b, c) -- type of ct
     -> TermS
 cTree (F _ ts) (F (_,p) cts) = F (show p) $ zipWith cTree ts cts
 cTree (V _) (V (_,p))        = V $ show p
@@ -5613,10 +5632,10 @@ cTree _     (F (_,p) _)      = mkConst p
     each tree level.
 -}
 getSubtree
-    :: TermSP -- ^ ct
-    -> Int -- ^ x
-    -> Int -- ^ y
-    -> Maybe ([Int], TermSP) -- ^ (ct', p)
+    :: TermSP -- type of ct
+    -> Int -- type of x
+    -> Int -- type of y
+    -> Maybe ([Int], TermSP) -- type of (ct', p)
 getSubtree ct = getSubtrees [([],ct)]
 
 getSubtrees
@@ -5633,24 +5652,24 @@ getSubtrees _ _ _               = Nothing
 
 getSubtreeX :: [(a, TermSP)] -> Int -> Maybe (a, TermSP)
 getSubtreeX [] _   = Nothing
-getSubtreeX pcts x 
-    | abs (x - x') < 10 = Just pct
-    | x < x' = getSubtreeX (take middle pcts) x
-    | otherwise = getSubtreeX (drop (middle + 1) pcts) x
-     where middle = length pcts`div`2
-           pct@(_,ct) = pcts!!middle
-           (_,(x',_)) = root ct
+getSubtreeX pcts x | abs (x - x') < 10 = Just pct
+                   | x < x'            = getSubtreeX (take middle pcts) x
+                   | True              = getSubtreeX (drop (middle + 1) pcts) x
+                                         where middle = length pcts`div`2
+                                               pct@(_,ct) = pcts!!middle
+                                               (_,(x',_)) = root ct
+                                               
 
--- * Enumerators
+-- * Types and functions for the ENUMERATOR template (see Ecom)
 
 data Align_ a = Compl a a (Align_ a) | Equal_ [a] (Align_ a) | 
-                 Ins [a] (Align_ a) | Del [a] (Align_ a) | End [a] 
+                Ins [a] (Align_ a) | Del [a] (Align_ a) | End [a] 
                 deriving (Show,Eq)
 
 parseAlignment :: TermS -> Maybe (Align_ String)
 parseAlignment (F "compl" [u,t,v]) = do t <- parseAlignment t
                                         Just $ Compl (showTerm0 u) 
-                                                      (showTerm0 v) t
+                                                     (showTerm0 v) t
 parseAlignment (F "equal" (t:ts))  = do t <- parseAlignment t
                                         Just $ Equal_ (map showTerm0 ts) t
 parseAlignment (F "insert" (t:ts)) = do t <- parseAlignment t
@@ -5662,6 +5681,7 @@ parseAlignment t                   = do F "end" ts <- Just t
 
 -- | @mkAlign global xs ys@ generates __alignments__ of @xs@ and @ys@ by
 -- recursive tabulation and optimization.
+
 mkAlign :: Eq a => Bool -> [a] -> [a] -> RelFun a -> [Align_ a]
 mkAlign global xs ys compl = (if global then id else maxima maxmatch)
                               $ align!(0,0)
@@ -5672,7 +5692,7 @@ mkAlign global xs ys compl = (if global then id else maxima maxmatch)
                 | j == lg2 = delete
                 | x == y = equal ++ append
                 | compl x y || compl y x = match ++ append
-                | otherwise = append
+                | True = append
                          where x = xs!!i; y = ys!!j; ts = align!(i+1,j+1)
                                equal  = map (Equal_ [x]) ts
                                match  = map (Compl x y) ts
@@ -5682,6 +5702,7 @@ mkAlign global xs ys compl = (if global then id else maxima maxmatch)
 
 -- | @mkPali xs@ recognizes locally separated __palindromes__ within @xs@ by
 -- recursive tabulation and optimization.
+
 mkPali :: Eq a => [a] -> RelFun a -> [Align_ a]
 mkPali xs compl = align!(0,lg)
  where lg = length xs
@@ -5691,7 +5712,7 @@ mkPali xs compl = align!(0,lg)
                 | i + 1 == j = [End [x]]
                 | x == y = equal ++ append
                 | compl x y || compl y x = match ++ append
-                | otherwise = append
+                | True = append
                          where x = xs!!i; y = xs!!(j-1); ts = align!(i+1,j-1)
                                equal  = map (Equal_ [x]) ts 
                                match  = map (Compl x y) ts
@@ -5700,27 +5721,29 @@ mkPali xs compl = align!(0,lg)
 
 compress :: Align_ String -> Align_ String                
 compress t = case t of Equal_ xs (Equal_ ys t) -> compress $ Equal_ (xs++ys) t
-                       Ins xs (Ins ys t) -> compress $ Ins (xs++ys) t
-                       Del xs (Del ys t) -> compress $ Del (xs++ys) t
-                       Equal_ xs t       -> Equal_ xs $ compress t
-                       Ins xs t          -> Ins xs $ compress t
+                       Ins xs (Ins ys t)       -> compress $ Ins (xs++ys) t
+                       Del xs (Del ys t)       -> compress $ Del (xs++ys) t
+                       Equal_ xs t             -> Equal_ xs $ compress t
+                       Ins xs t                -> Ins xs $ compress t
                        Del xs t                -> Del xs $ compress t
-                       Compl x y t           -> Compl x y $ compress t
-                       End _                  -> t
+                       Compl x y t             -> Compl x y $ compress t
+                       End _                   -> t
 
 -- | @matchcount t@ computes the number of matches of @t@ of length 1.
+
 matchcount
-    :: Align_ a -- ^ t
+    :: Align_ a -- type of t
     -> Int
 matchcount t = case t of Compl _ _ t -> matchcount t+1
-                         Equal_ _ t -> matchcount t+1
-                         Ins _ t -> matchcount t
-                         Del _ t -> matchcount t
-                         _ -> 0
+                         Equal_ _ t  -> matchcount t+1
+                         Ins _ t     -> matchcount t
+                         Del _ t     -> matchcount t
+                         _           -> 0
 
 -- | @maxmatch t@ returns the length of the maximal match of @t@.
+
 maxmatch
-    :: Align_ a -- ^ t
+    :: Align_ a -- type of t
     -> Int
 maxmatch = f False 0 0 where f False _ n (Compl _ _ t) = f True 1 n t
                              f _ m n (Compl _ _ t)     = f True (m+1) n t
@@ -5728,7 +5751,7 @@ maxmatch = f False 0 0 where f False _ n (Compl _ _ t) = f True 1 n t
                              f _ m n (Equal_ _ t)      = f True (m+1) n t
                              f _ m n (Ins _ t)         = f False 0 (max m n) t
                              f _ m n (Del _ t)         = f False 0 (max m n) t
-                             f _ m n _                        = max m n
+                             f _ m n _                 = max m n
 
 {- |
 @mkDissects c c' ns b h@ computes all __dissections__ @d@ of @a@ rectangle with
@@ -5737,42 +5760,42 @@ breadth @b@, height @h@ and the cardinality among @ns@ such that all elements of
 satisfy @c@ and @d@ satisfies @c'@.
 -}
 mkDissects
-    :: ((Int,Int,Int,Int) -> Bool) -- ^ c
-    -> RelFun [(Int,Int,Int,Int)] -- ^ c'
-    -> [Int] -- ^ n
-    -> Int -- ^ b
-    -> Int -- ^ h
-    -> [TermS] -- ^ d
+    :: ((Int,Int,Int,Int) -> Bool) -- type of c
+    -> RelFun [(Int,Int,Int,Int)] -- type of c'
+    -> [Int] -- type of n
+    -> Int -- type of b
+    -> Int -- type of h
+    -> [TermS] -- type of d
 
 mkDissects c c' ns b h = map (Hidden . Dissect) $ joinBMap f ns
-  where f n = joinBMap (flip (disSucs m) ([(0,0,b,h)],[],[]))
-                                         [max 0 (n+1-b-h)..m-1] where m = n-1
-        disSucs 0 0 (top,left,inner) =
-            [topleft ++ inner | all c topleft && c' inner topleft]
-                                       where topleft = top++left
-        disSucs n k trip | n == 0    = ds1 -- n = number of splits
-                         | k == 0    = ds2 -- k = number of joins
-                         | otherwise = ds1 `join` ds2
-             where ds1 = maybe [] (disSucs n (k-1)) trip'
-                         where trip' = joinHV c c' trip
-                   ds2 = joinBMap (disSucs (n-1) k) $ splitV trip++splitH trip
+      where f n = joinBMap (flip (disSucs m) ([(0,0,b,h)],[],[]))
+                                         [max 0 (n+1-b-h)..m-1] 
+                  where m = n-1
+            disSucs 0 0 (top,left,inner) =
+                          [topleft ++ inner | all c topleft && c' inner topleft]
+                          where topleft = top++left
+            disSucs n k trip | n == 0 = ds1 -- n = number of splits
+                         | k == 0 = ds2 -- k = number of joins
+                         | True   = ds1 `join` ds2
+               where ds1 = maybe [] (disSucs n (k-1)) trip'
+                           where trip' = joinHV c c' trip
+                     ds2 = joinBMap (disSucs (n-1) k) $ splitV trip++splitH trip
 
+splitV :: (Enum a, Eq b, Num b, Num a, Ord a) => ([(a, b, a, c)], d, e) 
+                                              -> [([(a, b, a, c)], d, e)]
 splitV ((0,0,b,h):top,left,inner) = if b < 2 then [] else map f [1..b-1]
-                             where f i = ((0,0,i,h):(i,0,b-i,h):top,left,inner)
-
-splitV :: (Enum a, Eq b, Num b, Num a, Ord a) =>
-          ([(a, b, a, c)], d, e) -> [([(a, b, a, c)], d, e)]
-splitH :: (Enum d, Eq a, Eq b, Num a, Num b, Num e, Num d, Ord d) =>
-          ([(a, b, c, d)], [(e, d, c, d)], f)
-          -> [([(a, b, c, d)], [(e, d, c, d)], f)]
+                              where f i = ((0,0,i,h):(i,0,b-i,h):top,left,inner)
+splitH :: (Enum d, Eq a, Eq b, Num a, Num b, Num e, Num d, Ord d) 
+                                        => ([(a, b, c, d)], [(e, d, c, d)], f) 
+                                        -> [([(a, b, c, d)], [(e, d, c, d)], f)]
 splitH ((0,0,b,h):top,left,inner) = if h < 2 then [] else map f [1..h-1]
                              where f i = ((0,0,b,i):top,(0,i,b,h-i):left,inner)
 
-joinHV :: (Eq c, Eq d, Num b, Num a, Num c, Num d, Ord b, Ord a) =>
-          ((a, b, a, b) -> Bool)
-          -> ([(a, b, a, b)] -> [(a, b, a, b)] -> Bool)
-          -> ([(a, c, a, b)], [(d, b, a, b)], [(a, b, a, b)])
-          -> Maybe ([(a, c, a, b)], [(d, b, a, b)], [(a, b, a, b)])
+joinHV :: (Eq c, Eq d, Num b, Num a, Num c, Num d, Ord b, Ord a) 
+                       => ((a, b, a, b) -> Bool)
+                       -> ([(a, b, a, b)] -> [(a, b, a, b)] -> Bool)
+                       -> ([(a, c, a, b)], [(d, b, a, b)], [(a, b, a, b)])
+                       -> Maybe ([(a, c, a, b)], [(d, b, a, b)], [(a, b, a, b)])
 joinHV c c' ((0,0,b,h):(i,0,b',h'):top,left,inner)
          | h' > h && c r && c' inner [r] = Just ((0,0,b+b',h):top,left,r:inner)
                                            where r = (i,h,b',h'-h)
@@ -5782,6 +5805,7 @@ joinHV c c' ((0,0,b,h):top,(0,i,b',h'):left,inner)
 joinHV _ _ _                             = Nothing
 
 -- | dissection constraints
+
 dissConstr :: Int -> Int -> TermS -> Maybe ((Int,Int,Int,Int) -> Bool, [Int],
                                             RelFun [(Int,Int,Int,Int)])
 dissConstr b h (F "|" ts)       = do fnsgs <- mapM (dissConstr b h) ts
@@ -5845,8 +5869,8 @@ dissConstr _ _ _                = Nothing
     that satisfy @c@.
 -}
 mkPartitions
-    :: (Int -> [Term Int] -> Bool) -- ^ c
-    -> Int -- ^ n
+    :: (Int -> [Term Int] -> Bool) -- type of c
+    -> Int -- type of n
     -> TermS
     -> [TermS]
 mkPartitions c n = map (mapT show) . mkTrees c n . ht n
@@ -5856,8 +5880,6 @@ mkPartitions c n = map (mapT show) . mkTrees c n . ht n
                 ht _ (F "hei" [m]) | just n = get n where n = parseNat m
                 ht n _                                = n-1
 
--- used by Ecom > enumerator
-
 {- |
     Given a list @s@ with @n@ elements, @mkTrees c n h@ computes the nested
     partitions @ps@ of @s@ such that @ps@ satisfies the constraint @c@, the 
@@ -5866,9 +5888,9 @@ mkPartitions c n = map (mapT show) . mkTrees c n . ht n
     the partitions as trees.
 -}
 mkTrees :: (Enum a, Eq a, Num a) =>
-           (a -> [Term a] -> Bool) -- ^ c
-           -> Int -- ^ n
-           -> a -- ^ h
+           (a -> [Term a] -> Bool) -- type of c
+           -> Int -- type of n
+           -> a -- type of h
            -> [Term a]
 mkTrees c n h = if c 1 ts then map (mkTree 1) $ foldl f [ts] [0..h-1] else []
   where mkTree _ [t] = t
@@ -5894,6 +5916,7 @@ mkTrees c n h = if c 1 ts then map (mkTree 1) $ foldl f [ts] [0..h-1] else []
               -- from the list ts of trees up to height h-1.
 
 -- | partition constraints
+
 partConstr :: TermS -> Maybe (Int -> [Term Int] -> Bool)
 partConstr (F "|" ts)      = do fs <- mapM partConstr ts
                                 Just (foldl1 h fs)

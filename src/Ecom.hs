@@ -1,9 +1,7 @@
-{-|
-Module      : Ecom (update from July 1, 2021)
-Description : see below
+{-
+Module      : Ecom (update from July 12, 2021)
 Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
-Maintainer  : (padawitz peter)@(edu udo)
 Stability   : experimental
 Portability : portable
 
@@ -24,7 +22,7 @@ initialFont = sansSerif ++ " 15"
 
 data PossAct = Add [[Int]] | Remove [Int] | Replace [[Int]]
 
--- * __Proofs__
+-- PROOFS
 
 data ProofElem = ProofElem
     { peMsg,peMsgL,peTreeMode :: String
@@ -70,7 +68,7 @@ preceding msg ps tm n = msg ++ (if take 3 msg `elem` ["BUI","MIN"] then ""
           showPS ps = "at positions" ++ concatMap f ps ++ "\nof the preceding "
           f p = '\n':show p `minus1` ' '
 
--- * __Proof term__ functions
+-- PROOF TERM functions
 
 deriveStep (Mark _ _)       = False
 deriveStep (Matching _ _)   = False
@@ -98,6 +96,7 @@ command = concat
            symbol "CreateInvariant" >> token bool >>= return . CreateInvariant,
            symbol "DecomposeAtom" >> return DecomposeAtom,
            symbol "DerefNodes" >> return DerefNodes,
+           symbol "DetKripke" >> return DetKripke,
            symbol "Distribute" >> return Distribute,
            symbol "EvaluateTrees" >> return EvaluateTrees,
            do symbol "ExpandTree"; b <- token bool
@@ -166,10 +165,10 @@ linearTerm = concat [do symbol "F"; x <- token quoted
                         list linearTerm >>= return . F x,
                      symbol "V" >> token quoted >>= return . V]
 
--- * __Solver__ messages
+-- SOLVER messages
 
 start :: String
-start = "Welcome to Expander3 (July 1, 2021)"
+start = "Welcome to Expander3 (July 12, 2021)"
 
 startOther :: String -> String
 startOther solve = "Load and parse a term or formula in " ++ solve ++ "!"
@@ -241,6 +240,9 @@ creatingInvariant str ax = str ++ " for the iterative program\n\n" ++
 
 dereferenced :: String
 dereferenced = "The selected pointers have been dereferenced."
+
+deterministic n = "The Kripke model has been made deterministic. It has " ++ 
+                  show' n "state" ++ "."
 
 distributed = "The selected factor/summand/premise/conclusion has been " ++
             " distributed over the selected dis- or conjunction."
@@ -607,7 +609,7 @@ specfiles3 =
   words "shelves simpl stack STACKimpl STACKimpl2 stream trans0 trans1" ++
   words "trans2 turtles widgets zip"
 
--- * the __Solver__ template
+-- the SOLVER template
 
 solver :: String -> IORef Solver -> Enumerator -> Painter -> Template Solver
 solver this solveRef enum paint = do
@@ -1102,12 +1104,13 @@ solver this solveRef enum paint = do
           mkBut specMenu ".. from regular expression" $ buildKripke 4
           mkBut specMenu ".. cycle-free" $ buildKripke 0
           mkBut specMenu ".. pointer-free" $ buildKripke 1
+          mkBut specMenu "make deterministic" detKripke
           mkBut specMenu "state equivalence" stateEquiv
           mkBut specMenu "minimize" minimize
-          mkBut specMenu "build regular expression" buildRegExp
-          mkBut specMenu "distribute regular expression" $ reduceRegExp 0
-          mkBut specMenu "reduce left-folded regular expression"$ reduceRegExp 1
-          mkBut specMenu ".. right-folded regular expression" $ reduceRegExp 2
+          mkBut specMenu "regular expression" buildRegExp
+          mkBut specMenu "distribute products over sums" $ reduceRegExp 0
+          mkBut specMenu "reduce left factors" $ reduceRegExp 1
+          mkBut specMenu "reduce right factors" $ reduceRegExp 2
           mkBut specMenu "regular equations" $ modifyEqs 1
           mkBut specMenu "substitute variables" $ modifyEqs 2
           mkBut specMenu "solve regular equation" $ modifyEqs 3
@@ -1719,16 +1722,15 @@ solver this solveRef enum paint = do
             spread <- readIORef spreadRef
             setEval paint picEval spread
         
-        {-
-            | Builds a Kripke model based on the given @mode@.
+        {- builds a Kripke model based on the mode parameter:
             0 -> cycle free
             1 -> pointer-free
             2 -> normal
             3 -> rebuild last one
-            4 -> from current graph
-            Used by 'checkForward' and multiple entries from "specification"
-            menu.
+            4 -> from current graph 
+           used by checkForward and the specification menu
         -}
+
         buildKripke :: Int -> Action
         buildKripke 3 = do                              -- from current graph
           trees <- readIORef treesRef
@@ -1773,30 +1775,22 @@ solver this solveRef enum paint = do
                case parseRE sig $ getSubterm t p of
                     Just (e,labs)
                       -> do
-                         let labs' = labs `minus1` "eps"
-                             (sts',delta,initials,finals) =
-                                             powerAuto (snd $ regToAuto e) labs'
-                             sts = map mkConst sts'
-                             labels = map leaf labs'
+                         let (sts,(trans,transL)) = regToAuto e
+                             sts' = map mkConst sts
+                             final = getInd sts' $ mkConst 1
+                             labels = map leaf labs
                              atoms = [leaf "final"]
-                             mkTrans (st,a) = (mkPair (mkConst st) $ leaf a,[],
-                                               mkConst $ delta st a)
-                             transRules = map mkTrans $ prod2 sts' labs'
-                         writeIORef kripkeRef (sts,labels,atoms,[],[],[],[])
-                         writeIORef iniStatesRef $ map mkConst initials
-                         changeSimpl "states" $ mkList sts
+                             tr = funToList sts sts trans
+                             trL = funLToList sts labs sts transL
+                         writeIORef iniStatesRef [mkConst 0]
+                         changeSimpl "states" $ mkList sts'
                          changeSimpl "labels" $ mkList labels
                          changeSimpl "atoms"  $ mkList atoms
-                         writeIORef transRulesRef transRules 
-                         sig <- getSignature
-                         let (_,_,rsL) = buildTrans sig $ states sig
-                             trL = tripsToInts sts labels rsL sts
-                         writeIORef kripkeRef
-                           (sts,labels,atoms,[],trL,[finals],[])
+                         writeIORef kripkeRef 
+                                    (sts',labels,atoms,tr,trL,[[final]],[])
                          setProof True False kripkeMsg [] $
-                                  kripkeBuilt 4 0 (length sts) (length labs') 1
+                                  kripkeBuilt 4 0 (length sts) (length labs) 1
                     _ -> labMag "Select a regular expression!"
-
 
         buildKripke mode = do                     -- from transition axioms
           enterTree' False $ V "building Kripke model ..."
@@ -2116,6 +2110,7 @@ solver this solveRef enum paint = do
                     CreateIndHyp -> createIndHyp
                     CreateInvariant b -> createInvariant b
                     DecomposeAtom -> decomposeAtom
+                    DetKripke -> detKripke
                     Distribute -> distribute
                     EvaluateTrees -> evaluateTrees
                     ExpandTree b n -> expandTree' b n
@@ -2596,6 +2591,20 @@ solver this solveRef enum paint = do
                   setProof True False "DEREFERENCING THE NODES" ps dereferenced
                   clearAndDraw
                else labMag "Select pointers!"
+                                
+        detKripke = do
+          sig <- getSignature
+          if null $ states sig then labMag "The Kripke model is empty!"
+          else do 
+               iniStates <- readIORef iniStatesRef
+               let (sts,inits,trL,va,vaL) = powerAuto sig iniStates
+                   sts' = map mkConst sts
+               changeSimpl "states" $ mkList sts'
+               writeIORef kripkeRef (sts',labels sig,atoms sig,[],trL,va,vaL)
+               writeIORef iniStatesRef $ map mkConst inits
+               extendPT DetKripke
+               setProof True False "MAKING THE KRIPKE MODEL DETERMINISTIC" [] $ 
+                        deterministic $ length sts
 
         distribute = do
           trees <- readIORef treesRef
@@ -2628,13 +2637,11 @@ solver this solveRef enum paint = do
                  _ -> labMag selectDistribute
 
         -- | Used by 'drawPointer', 'drawShrinked', 'drawThis', 'moveTree' and
-        -- 'setInterpreter'
-        
+        -- 'setInterpreter'        
         draw :: TermSP -> Action
         draw ct = do
             sizeState <- readIORef sizeStateRef
             treeposs <- readIORef treepossRef
-
             clear canv
             writeIORef ctreeRef $ Just ct
             let (_,_,maxx,maxy) = minmax $ foldT (bds sizeState) ct
@@ -3536,24 +3543,24 @@ solver this solveRef enum paint = do
                                                              else []
                      where lg = length ts
         
-        -- | Used by 'applyInd', 'applyTheorem', 'finishDisCon', 'narrowPar',
+        -- used by 'applyInd', 'applyTheorem', 'finishDisCon', 'narrowPar',
         -- 'replaceSubtrees'' and 'replaceVar'.
         maybeSimplify :: Sig -> TermS -> Action
         maybeSimplify sig t = do
           simplifying <- readIORef simplifyingRef
           updateCurr $ if simplifying then simplifyFix sig t else t
  
-        -- | Used by 'checkForward'. Called by menu item "minimize" from
+        -- used by 'checkForward'. Called by menu item "minimize" from
         -- "specification" menu.
         minimize :: Action
         minimize = do
           sig <- getSignature
           if null $ states sig then labMag "The Kripke model is empty!"
           else do iniStates <- readIORef iniStatesRef
-                  let (sts,tr,trL,va,vaL,newInits) = mkQuotient sig iniStates
+                  let (sts,inits,tr,trL,va,vaL) = mkQuotient sig iniStates
                   changeSimpl "states" $ mkList sts
                   writeIORef kripkeRef (sts,labels sig,atoms sig,tr,trL,va,vaL)
-                  writeIORef iniStatesRef newInits
+                  writeIORef iniStatesRef inits
                   extendPT Minimize
                   setProof True False "MINIMIZING THE KRIPKE MODEL" [] $
                            minimized $ length sts

@@ -31,9 +31,9 @@ map(F)$x:s == F(x):map(F)$s &
 
 single$x == [x] &
 
-concatMap$F == concat.(map$F) &
+concatMap$F == concat.(map$F) &		-- monadic extension (=<<) = flip (>>=)
 
-G<=<F == concatMap(G).F &	-- Kleisli composition for [ ]
+G<=<F == concatMap(G).F &		-- monadic composition for [ ]
 
 x+0 == x & x+0.0 == x &
 0+x == x & 0.0+x == x &

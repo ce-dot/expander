@@ -63,12 +63,14 @@ stack build
 ## Important folders ##
 
 ### src ###
-Contains the source code.
+source code
 
 ### app ###
-Main function for expander and hilbs executable.
+main function for expander and hilbs executables
 
 ### data/style ###
-Files for layout and design.
+files for layout and design
 
+## Pictures and videos ##
 
+https://padawitz.de/expander3.html

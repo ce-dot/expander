@@ -8,7 +8,7 @@ In Expander3, the special O'Haskell constructs are replaced by more or less equi
 
 ## Dependencies ##
 
-Before compiling and installing *Expander* the following tools are needed:
+For compiling and installing *Expander* the following tools are needed:
 * stack
 * Gtk+3
 

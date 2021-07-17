@@ -78,6 +78,6 @@ main function for expander and hilbs executables
 
 files for layout and design
 
-## Documents, pictures, and videos ##
+## Documents, pictures and videos ##
 
 https://padawitz.de/expander3.html

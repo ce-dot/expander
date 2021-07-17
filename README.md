@@ -21,6 +21,7 @@ Follow the installation guide [here](http://docs.haskellstack.org/en/stable/inst
 Download with Homebrew [here](https://formulae.brew.sh/formula/gtk+3).
 
 **Linux**
+
 Most Linux distributions already have Gtk+ installed. Often development packages are needed. Visit official download page for more information. For Debian/Ubuntu:
 ```
 $ apt install libgtk-3-dev
@@ -71,6 +72,6 @@ main function for expander and hilbs executables
 ### data/style ###
 files for layout and design
 
-## Pictures and videos ##
+## Documents, pictures, and videos ##
 
 https://padawitz.de/expander3.html

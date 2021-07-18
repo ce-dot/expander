@@ -34,7 +34,7 @@
   </object>
   <object class="GtkAdjustment" id="horButRange">
     <property name="upper">100</property>
-    <property name="value">35</property>
+    <property name="value">15</property>
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
   </object>
@@ -166,10 +166,7 @@
                   <object class="GtkScrolledWindow" id="scrollCanv">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="shadow-type">in</property>
-                    <child>
-                      <placeholder/>
-                    </child>
+                    <property name="shadow-type">in</property>            
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -328,7 +325,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
-                        <property name="font">Sans 12</property>
+                        <property name="font">Sans 15</property>
                         <property name="preview-text"/>
                         <property name="show-style">False</property>
                         <property name="show-size">False</property>
@@ -970,19 +967,7 @@
                     <property name="left-attach">1</property>
                     <property name="top-attach">1</property>
                   </packing>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
+                </child>                
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -1002,7 +987,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
-                    <property name="image">backImg</property>
+                    <property name="label" translatable="yes">&#8592;</property>
                     <property name="always-show-image">True</property>
                     <style>
                       <class name="default_button"/>
@@ -1020,7 +1005,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
-                    <property name="image">forwImg</property>
+                    <property name="label" translatable="yes">&#8594;</property>
                     <property name="always-show-image">True</property>
                     <style>
                       <class name="default_button"/>

@@ -34,9 +34,9 @@ final -> q1 &   -- A3: acceptor of reg$11
 
 -- regular expressions
 
-reg$1 == star$plus(a)+plus(b*c) & 		    --> star(a+b*c)
+reg$1 == star$plus(a)+plus(b*c) & 		    --> reg$12
 
-reg$2 == a+a*a*star(a)*b+a*b*star(b)+b &	    --> star(a)*b+a*star(b)	
+reg$2 == a+a*a*star(a)*b+a*b*star(b)+b &	    --> reg$13	
  
 reg$3 == a+star(a)+eps+a & 			    --> star(a) 
  
@@ -65,6 +65,12 @@ reg$9 == a+c+eps+((a+c+eps)*star(a+c+eps)*(a+c+eps))+
 reg$10 == star(a)+star(a)*b*star(c*star(a)*b)*c*star(a) &
 
 reg$11 == star(a)*b*star(a*(a+b)+b) &
+
+reg$12 == star(a+b*c) & 			    -- RE1
+
+reg$13 == star(a)*b+a*star(b) & 
+
+reg$14 == star(b)*a*star(a+b) &
 	
 -- widget interpreters
 
@@ -86,21 +92,25 @@ Unfold(q)[a,b,a,b,b,a,b,a] 	--> False
 
 terms:
 
-star(a+b*c) <+>			-- RE1
+scanND(q)[] <+>			--> []		
+scanND(q)[b] <+>	        --> [final]
+scanND(q)[b,b] <+>		--> [final]
+scanND(q)[a,b,a,a,b,a] <+>	--> []		
+scanND(q)[a,b,a,a,b,a,b] <+>	--> [final]	
+scanND(q)[a,b,a,b,a,b,a] <+>	--> []
+scanND(q)[a,b,a,b,b,a,b,a] <+>	--> []
 
-scan(q)[] <+>			--> []		
-scan(q)[b] <+>	       	        --> [final]
-scan(q)[b,b] <+>		--> [final]
-scan(q)[a,b,a,a,b,a] <+>	--> []		
-scan(q)[a,b,a,b,a,b,a] <+>	--> [final]
-scan(q)[a,b,a,a,b,a,b] <+>	--> [final]	
-scan(q)[a,b,a,b,b,a,b,a] <+>	--> []
-
-detScan(q)[a,b,a,a,b,a] <+>	--> []		
-detScan(q)[a,b,a,a,b,a,b] <+>	--> [final]		
+scanD(q)[a,b,a,a,b,a] <+>	--> []		
+scanD(q)[a,b,a,a,b,a,b] <+>	--> [final]		
 
 unfoldBro(reg$2)[a,a,a,b] <+>   --> 1
 unfoldBro(reg$2)[a,a,a,b,b] <+> --> 0
 
-auto$reg$1 <+>			--> non-deterministic acceptor of reg$1 
-pauto$reg$1 			--> deterministic acceptor of reg$1   
+auto$reg$12 <+>	        -- auto = build Kripke model from regular expression
+auto$reg$13 <+>	 
+auto$reg$14 <+>
+
+-- powerAuto of reg$14 yields:
+
+traces(3)(2) <+>  --> [3,0,1,2] <+> [3,1,2] 
+tracesL(3)(2)     --> [b,a,b] <+> [b,a,a] <+> [a,b] <+> [a,a] 

@@ -4,13 +4,13 @@ Thumbs.db
 *~
 \#*#
 .DS_Store
+/expander.cabal
 # exclude everything in the root dir
 /*.*
 # IntelliJ
 out
 # except:
 !/.gitignore
-!/expander.cabal
 !/LICENSE
 !/Setup.hs
 !/README.md

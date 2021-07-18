@@ -954,13 +954,11 @@ filterTerms sig p (t:ts) = do ts <- filterTerms sig p ts
                            where f = sapply sig p
 filterTerms _ _ _        = Just []
 
-applyDrawFun :: Sig -> TermS -> Bool -> String -> TermS -> TermS
-applyDrawFun sig drawFun more text t | null text = u 
-                                     | more      = addTexts u $ mkStrings text
-                                     | True      = addTexts u [text]
-     where u | drawFun == leaf "id" = t
-             | True = wt $ simplifyIter sig $ F "$" [drawFun,add1ToPoss t] 
-           parser = parse $ singleTerm sig
+applyDrawFun :: Sig -> TermS -> TermS -> TermS
+applyDrawFun sig drawFun t = 
+                       if drawFun == leaf "id" then t
+                       else wt $ simplifyIter sig $ F "$" [drawFun,add1ToPoss t] 
+     where parser = parse $ singleTerm sig
            wt (F "$" [F "$" [F "wtree" [m],f],t]) | just m' = g t pt
               where m' = parsePnat m
                     order = case get m' of 1 -> levelTerm; 2 -> preordTerm
@@ -983,18 +981,6 @@ applyDrawFun sig drawFun more text t | null text = u
                     g t = t
                     h = sapply sig f
            wt t = t
-           addTexts (F "<+>" ts) strs = mkSum $ zipWith3 h [0..] ts strs ++
-                                                map wf (drop n strs)
-                              where h i t str = F "widg" [addToPoss [i] t,f str]
-                                    n = length ts
-           addTexts t (str:strs) =  F "widg" $ addToPoss [0] t:map wf strs ++
-                                               [f str]
-           wf str = F "widg" [f str]
-           f str = path "blue $" [path "frame 5" [],F "text" [leaf str]]
-           path str ts = g $ words str where g [x]    = F x ts
-                                             g (x:xs) = F x [g xs]
-
--- The optional text in the entry field is framed and added to the picture of t. ' in the text is interpreted as a line break.
 
 -- wtree(f)(t) replaces each subgraph x(t1,..,tn) of t by the subgraph 
 -- widg(t1,...,tn,f(x)).

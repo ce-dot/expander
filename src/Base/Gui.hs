@@ -178,13 +178,13 @@ canvasBackground
 
 canvasCursor :: WriteAttr Canvas CursorType
 canvasCursor = writeNamedAttr "cursor" canvasSetCursor
-    
+
 canvas :: Template Canvas
 canvas = do
     surfaceRef <- newIORef undefined
     sizeRef <- newIORef (0, 0)
     backgroundRef <- newIORef $ RGB 0 0 0
-    
+
     surface0 <- createImageSurface FormatRGB24 1 1
     writeIORef surfaceRef surface0
     drawingArea <- drawingAreaNew
@@ -192,7 +192,7 @@ canvas = do
         surface <- liftIO $ readIORef surfaceRef
         setSourceSurface surface 0 0
         paint
-    
+
     return $ let
         calcVertexes :: Pos -> Pos -> ((Double, Double), (Double, Double))
         calcVertexes tip end = ((x1, y1), (x2, y2))
@@ -205,7 +205,7 @@ canvas = do
                   y1 = tipY + len * sin (angle - degree)
                   x2 = tipX + len * cos (angle + degree)
                   y2 = tipY + len * sin (angle + degree)
-        
+
         arrowTriangle :: Pos -> Pos -> Render ()
         arrowTriangle tip@(tipX, tipY) end = do
             let (x1, y1) = (fromIntegral tipX, fromIntegral tipY)
@@ -215,7 +215,7 @@ canvas = do
             lineTo x3 y3
             closePath
             Cairo.fill
-        
+
         arrow :: Maybe ArrowType -> [Pos] -> Render ()
         arrow (Just First) (p1:p2:_) = arrowTriangle p1 p2
         arrow (Just Last) ps@(_:_:_) = arrowTriangle p1 p2
@@ -226,7 +226,7 @@ canvas = do
         arrow (Just Both) ps@(_:_:_)
             = arrow (Just First) ps >> arrow (Just Last) ps
         arrow _ _ = return ()
-        
+
         setLineOpt :: LineOpt -> Render ()
         setLineOpt (LineOpt col wdth _ cap joinStyle aa _) = do
             setColor col
@@ -234,7 +234,7 @@ canvas = do
             setLineCap cap
             setLineJoin joinStyle
             setAntialias $ if aa then AntialiasDefault else AntialiasNone
-        
+
         finishOval :: OvalOpt -> Render ()
         finishOval opt@OvalOpt{ ovalFill = c } = do
             save
@@ -245,7 +245,7 @@ canvas = do
             setLineWidth $ ovalWidht opt
             stroke
             restore
-        
+
         canvasOval' :: (Double, Double) -> (Double, Double) -> OvalOpt -> Action
         canvasOval' (x, y) (rx, ry) opt = do
             surface <- readIORef surfaceRef
@@ -282,14 +282,14 @@ canvas = do
                 stroke
                 restore
             widgetQueueDraw drawingArea
-                  
+
         curve :: [(Double, Double)] -> Render ()
         curve ((x1,y1):(x2,y2):(x3,y3):ps) = do
             curveTo x1 y1 x2 y2 x3 y3
             curve ps
         curve ((x,y):_) = lineTo x y
-        curve _ = return () 
-        
+        curve _ = return ()
+
         line' :: [Pos] -> LineOpt -> Action
         line' [] _ = return ()
         line' pss opt@LineOpt{ lineArrow = at
@@ -307,7 +307,7 @@ canvas = do
                 arrow at pss
                 restore
             widgetQueueDraw drawingArea
-        
+
         canvasPolygon' :: [Pos] -> PolygonOpt -> Action
         canvasPolygon' [] _ = error "Gui.canvasPolygon: empty list."
         canvasPolygon' pss
@@ -331,7 +331,7 @@ canvas = do
                 stroke
                 restore
             widgetQueueDraw drawingArea
-        
+
         canvasRectangle' :: Pos -> Pos -> OvalOpt -> Action
         canvasRectangle' pos dim opt = do
             surface <- readIORef surfaceRef
@@ -343,7 +343,7 @@ canvas = do
             widgetQueueDraw drawingArea
             where (x, y) = fromInt2 pos
                   (width, height) = fromInt2 dim
-        
+
         canvasText' :: Pos -> TextOpt -> String -> Action
         canvasText' (x, y) (TextOpt fnt align anchor col) str = do
             surface <- readIORef surfaceRef
@@ -366,7 +366,7 @@ canvas = do
                 showLayout layout
                 restore
             widgetQueueDraw drawingArea
-        
+
         getAnchorPos :: Double -> Double -> Double -> Double -> AnchorType
                      -> (Double, Double)
         getAnchorPos x y width height anchor =
@@ -391,7 +391,7 @@ canvas = do
                         S -> y - height
                         SE -> y - height
             in (x', y')
-        
+
         canvasImage' :: Pos -> ImageOpt -> Image -> Action
         canvasImage' pos opt (Image alpha image) = do
           when (not alpha) $ do
@@ -411,12 +411,12 @@ canvas = do
           where
             anchor      = imageAnchor opt
             sclFactor   = imageScale opt
-            
-        
+
+
         clear' = do
             surface <- readIORef surfaceRef
             background <- readIORef backgroundRef
-            
+
             renderWith surface $ do
                 setColor background
                 paint
@@ -439,7 +439,7 @@ canvas = do
                 img <- eitherimg
                 Picture.saveGifImage file img
               exist <- doesFileExist tmpfile
-              when exist $ removeFile tmpfile        
+              when exist $ removeFile tmpfile
           -- vector
           else if format `elem` ["ps", "pdf", "svg"]
             then do
@@ -464,8 +464,8 @@ canvas = do
             dups "jpg" = "jpeg"
             dups "eps" = "ps"
             dups name  = name
-            
-        
+
+
         canvasSetSize' size@(width, height) = do
             writeIORef sizeRef size
             background <- readIORef backgroundRef
@@ -477,22 +477,22 @@ canvas = do
                 setColor background
                 paint
             writeIORef surfaceRef surface
-                
+
         canvasSetBackground' = writeIORef backgroundRef
-        
+
         fromInt2 :: (Int, Int) -> (Double, Double)
         fromInt2 = fromIntegral Haskell.*** fromIntegral
-        
+
         setColor :: Color -> Render ()
         setColor (RGB r g b)
             = setSourceRGB
                 (fromIntegral r / 255)
                 (fromIntegral g / 255)
                 (fromIntegral b / 255)
-        
+
         getTextWidth' font str = do
             surface <- readIORef surfaceRef
-            
+
             widthRef <- newIORef undefined
             renderWith surface $ do
                 layout <- createLayout str
@@ -501,28 +501,28 @@ canvas = do
                                 $ layoutGetExtents layout
                 liftIO $ writeIORef widthRef width
             readIORef widthRef
-        
+
         getTextHeight' font = do
             surface <- readIORef surfaceRef
-            
+
             textHeight <- newIORef undefined
             renderWith surface $ do
                 layout <- createLayout "BASE"
                 liftIO $ layoutSetFontDescription layout $ Just font
                 (PangoRectangle _ _ _ height, _) <- liftIO
                                 $ layoutGetExtents layout
-                
+
                 liftIO
                     $ writeIORef textHeight (round (height/2), round (height/2))
             readIORef textHeight
-        
+
         canvasSetCursor' :: CursorType -> Action
         canvasSetCursor' ct = do
             cursor <- cursorNew ct
             root <- widgetGetRootWindow drawingArea
             drawWindowSetCursor root $ Just cursor
-            
-        
+
+
       in Canvas
         { canvasOval          = canvasOval'
         , canvasArc           = canvasArc'
@@ -581,7 +581,7 @@ addContextClass widget cl = do
     styleContextAddClass context cl
 -- Colors
 
-data Color = RGB Int Int Int deriving Eq
+data Color = RGB Int Int Int deriving (Eq, Read)
 
 black, white, red, green, blue, yellow, grey, magenta, cyan, orange, brown
     , darkGreen :: Color
@@ -616,16 +616,16 @@ gtkSet = Gtk.set
 -- Auxiliary types for options
 
 data None                  = None
-data AnchorType       = NW | N | NE | W | C | E | SW | S | SE 
+data AnchorType       = NW | N | NE | W | C | E | SW | S | SE
 data ReliefType       = Raised | Sunken | Flat | Ridge | Solid | Groove
-data VertSide         = Top | Bottom 
+data VertSide         = Top | Bottom
 data WrapType         = NoWrap | CharWrap | WordWrap
 data SelectType       = Single | Multiple
 data Align            = LeftAlign | CenterAlign | RightAlign
 data Round            = Round
-data ArcStyleType     = Pie | Chord | Perimeter deriving Eq
-data CapStyleType     = Butt | Proj 
-data JoinStyleType    = Bevel | Miter 
+data ArcStyleType     = Pie | Chord | Perimeter deriving (Eq, Read)
+data CapStyleType     = Butt | Proj
+data JoinStyleType    = Bevel | Miter
 data ArrowType        = First | Last | Both deriving (Show, Eq, Enum)
 data Rotation         = Counterclockwise | RotateUpsidedown | RotateClockwise
   deriving (Show, Eq, Enum)
@@ -721,7 +721,7 @@ imageOpt = ImageOpt 0.0 1.0 C
 --   = (,) <$> (pixbufGetWidth buf) <*> (pixbufGetHeight buf)
 
 -- data MenuOpt        > WindowOpt, Enabled
--- data MButtonOpt     > StdOpt, FontOpt, PadOpt, Img, Btmp, Underline, 
+-- data MButtonOpt     > StdOpt, FontOpt, PadOpt, Img, Btmp, Underline,
 
 -- Unparser
 
@@ -730,7 +730,7 @@ instance Show ArcStyleType where show Pie       = "pieslice"
                                  show Perimeter = "arc"
 
 
-instance Show Color where 
+instance Show Color where
    showsPrec _ (RGB r g b) rest = "#" ++ concatMap (hex 2 "") [r,g,b] ++ rest
                     where hex :: Int -> [Char] -> Int -> [Char]
                           hex 0 rs _ = rs
@@ -759,7 +759,7 @@ data Runnable = Runnable
 periodic :: Int -> Cmd () -> Request Runnable
 periodic millisecs act = do
     handlerID <- newIORef Nothing -- Nothing == not running
-    
+
     return Runnable
         { runnableStart = do
             maybeID <- readIORef handlerID
@@ -814,10 +814,10 @@ spline' ps@(p:_:_:_) = if p == last ps then spline0' True $!! init ps
                                       else spline0' False ps
 spline' ps = ps
 
--- spline0 b ps uses ps as control points for constructing a closed (b = True) 
--- resp. open (b = False) B-spline with degree 3; see Paul Burke, Spline Curves 
+-- spline0 b ps uses ps as control points for constructing a closed (b = True)
+-- resp. open (b = False) B-spline with degree 3; see Paul Burke, Spline Curves
 -- (http://astronomy.swin.edu.au/~pbourke/curves/spline)
--- or Heinrich Müller, B-Spline-Technik, Vorlesung Geometrisches Modellieren 
+-- or Heinrich Müller, B-Spline-Technik, Vorlesung Geometrisches Modellieren
 -- (http://ls7-www.cs.tu-dortmund.de).
 
 spline0 :: Bool -> [(Double,Double)] -> [(Double,Double)]
@@ -828,15 +828,15 @@ spline0 isClosed ps = first:map f [1..resolution] ++ map g [1..9] ++
               first = f 0
               n = length ps; resolution = n*6
               f, g :: Int -> (Double, Double)
-              f i = point $ upb*fromIntegral i/fromIntegral resolution 
+              f i = point $ upb*fromIntegral i/fromIntegral resolution
               g i = point $ upb+fromIntegral i/10
               upb = fromIntegral n-if isClosed then 1 else 3
               point v = foldl1 add2 $ map helper [0..n-1]
                         where helper i = apply2 (*z) $ ps!!i
                                 where z | isClosed && v < u i
-                                          = blend2 u i $ v-u 0+u n 
+                                          = blend2 u i $ v-u 0+u n
                                         | isClosed          = blend2 u i v
-                                        | otherwise         = blend2 sub2 i v 
+                                        | otherwise         = blend2 sub2 i v
               sub2 i = if i < 3 then 0 else fromIntegral (min i n)-2
               u i = if i <= n then fromIntegral i else u (i-1)+u (i-n)-u (i-n-1)
               h d s = if d == 0 then 0 else s
@@ -848,7 +848,7 @@ spline0 isClosed ps = first:map f [1..resolution] ++ map g [1..9] ++
                                    sum2 = num2/denom2*blend1 t (i+1) v
               blend1 t i v = h denom1 sum1+h denom2 sum2
                              where ti = t i; ti1 = t $ i+1; ti2 = t $ i+2
-                                   denom1 = ti1-ti;  num1 = v-ti 
+                                   denom1 = ti1-ti;  num1 = v-ti
                                    denom2 = ti2-ti1; num2 = ti2-v
                                    sum1 = if b i then num1/denom1 else 0
                                    sum2 = if b $ i+1 then num2/denom2 else 0
@@ -865,7 +865,7 @@ spline0' isClosed ps = first:map f [1..resolution] ++ map g [1..9] ++
                                in (r1, r2)
               first = f 0; !n = length ps; !resolution = n*6
               f, g :: Int -> (Double, Double)
-              f i = point $!! upb*fromIntegral i/fromIntegral resolution 
+              f i = point $!! upb*fromIntegral i/fromIntegral resolution
               g i = point $!! upb+fromIntegral i/10
               !n' = fromIntegral n
               upb = n'-if isClosed then 1 else 3
@@ -874,7 +874,7 @@ spline0' isClosed ps = first:map f [1..resolution] ++ map g [1..9] ++
                                where z | isClosed && v < u i
                                          = blend2 u i $!! v-u 0+u n
                                        | isClosed          = blend2 u i v
-                                       | otherwise         = blend2 sub2 i v 
+                                       | otherwise         = blend2 sub2 i v
               sub2 i | i < 3     = 0
                   | otherwise = fromIntegral (min i n)-2
               u i | i <= n    = fromIntegral i
@@ -889,7 +889,7 @@ spline0' isClosed ps = first:map f [1..resolution] ++ map g [1..9] ++
                                    sum2 = num2/denom2*blend1 t (i+1) v
               blend1 t i v = h denom1 sum1+h denom2 sum2
                              where ti = t i; ti1 = t $ i+1; ti2 = t $ i+2
-                                   denom1 = ti1-ti;  num1 = v-ti 
+                                   denom1 = ti1-ti;  num1 = v-ti
                                    denom2 = ti2-ti1; num2 = ti2-v
                                    sum1 = if b i then num1/denom1 else 0
                                    sum2 = if b $ i+1 then num2/denom2 else 0
@@ -936,4 +936,3 @@ interpolate' pss@(p1:p2:_:_) = p1:q1:interpolate0 pss
           interpolate0 _ = error "Gui.interpolate: interpolate' should never be\
                                 \ called with list of length < 2."
 interpolate' pss = pss
-

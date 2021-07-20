@@ -1,6 +1,6 @@
 -- {-# OPTIONS_GHC -fmax-pmcheck-iterations=4000000 #-}
 {-|
-Module      : Esolve (update from July 12, 2021)
+Module      : Esolve (update from July 20, 2021)
 Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
 Stability   : experimental
@@ -917,24 +917,20 @@ simplifyLoop sig limit strat t = loop 0 limit [t] where
 -- used by simplifyFix and Ecom > simplify',simplifySubtree
 
 step :: Strategy -> (TermS -> [Int] -> Maybe TermS) -> TermS -> Maybe TermS
-step strat simplify t =
-    do --guard $ isF t
-       case strat of DF -> modifyDF [] t                       -- depthfirst
-                     BF -> modifyBF [[]] [t]                   -- breadthfirst
-                     _  -> do let u = modifyPA t [] t          -- in parallel
-                              guard $ t /= u; Just u
-    where modifyDF p u   = concat $ simplify t p:zipWithSucs modifyDF p us
-                           where us = subterms u
-          modifyBF ps us = do guard $ notnull ps
-                              concat (map (simplify t) ps) ++ modifyBF qs vs
-                           where (qs,vs) = unzip $ concat
-                                                 $ zipWith (zipWithSucs (,)) ps
-                                                 $ map subterms us
-          modifyPA t p u = case simplify t p of
-                                Just t -> t
-                                _ -> fold2 modifyPA t (succsInd p us) us
-                           where us = subterms u
-
+step DF simplify t = f [] t where                            -- depthfirst
+                     f p u = concat $ simplify t p:zipWithSucs f p (subterms u)
+step BF simplify t = f [[]] [t] where                        -- breadthfirst
+                     f ps us = do guard $ notnull ps
+                                  concat (map (simplify t) ps) ++ f qs vs
+                               where (qs,vs) = unzip $ concat $
+                                               zipWith (zipWithSucs (,)) ps $
+                                               map subterms us
+step _ simplify t  = do let u = f t [] t                     -- parallel
+                        guard $ t /= u; Just u
+                     where f t p u = case simplify t p of
+                                          Just t -> t
+                                          _ -> fold2 f t (succsInd p us) us
+                                     where us = subterms u
 -- used by simplifyLoop
 
 sapply sig t  = simplifyIter sig . apply t
@@ -956,10 +952,10 @@ filterTerms _ _ _        = Just []
 
 applyDrawFun :: Sig -> TermS -> TermS -> TermS
 applyDrawFun sig drawFun t = 
-                       if drawFun == leaf "id" then t
-                       else wt $ simplifyIter sig $ F "$" [drawFun,add1ToPoss t] 
+                    if drawFun == leaf "id" then t
+                    else wtree $ simplifyIter sig $ F "$" [drawFun,add1ToPoss t] 
      where parser = parse $ singleTerm sig
-           wt (F "$" [F "$" [F "wtree" [m],f],t]) | just m' = g t pt
+           wtree (F "$" [F "$" [F "wtree" [m],f],t]) | just m' = g t pt
               where m' = parsePnat m
                     order = case get m' of 1 -> levelTerm; 2 -> preordTerm
                                            3 -> heapTerm;  _ -> hillTerm
@@ -972,7 +968,7 @@ applyDrawFun sig drawFun t =
                                         | True    = F "widg" [h t k]
                     g t _ = t
                     h t k = sapplyL sig f [t,mkConst k,mkConst n]
-           wt (F "$" [F "wtree" [f],t]) = g t
+           wtree (F "$" [F "wtree" [f],t]) = g t
               where g (F x ts) | just u  = F "widg" $ vs++[h $ get u]
                                | True    = F x vs where vs = map g ts
                                                         u = parser x
@@ -980,7 +976,7 @@ applyDrawFun sig drawFun t =
                                | True    = F "widg" [h t]
                     g t = t
                     h = sapply sig f
-           wt t = t
+           wtree t = t
 
 -- wtree(f)(t) replaces each subgraph x(t1,..,tn) of t by the subgraph 
 -- widg(t1,...,tn,f(x)).
@@ -1722,7 +1718,7 @@ simplifyS sig (F "~" [st,st']) = do i <- searchS sig st; j <- searchS sig st'
 
 -- stepwise minimization
 
-simplifyS sig (F x@"minAuto" []) = Just $ wmat $ EquivMat sig $ bisim0 sig
+simplifyS sig (F x@"minAuto" []) = Just $ Hidden $ EquivMat sig $ bisim0 sig
 
 simplifyS sig (Hidden (EquivMat _ trips)) | trips /= new
                                  = Just $ wmat $ EquivMat sig new

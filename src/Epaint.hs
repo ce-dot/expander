@@ -1,5 +1,5 @@
 {-
-Module      : Epaint (update from July 12, 2021)
+Module      : Epaint (update from July 20, 2021)
 Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
 Stability   : experimental
@@ -252,7 +252,7 @@ widgStore = do
             return $ store file
         }
 
--- * __Painter__ messages
+-- PAINTER messages
 
 combi :: Show a => a -> String
 combi n = "The current combination is " ++ show n ++ "."
@@ -283,7 +283,8 @@ savedCode :: String -> String -> String
 savedCode object file = "The Haskell code of the " ++ object ++ 
                         " has been saved to " ++ file ++ "."
 
--- * the PAINTER template
+--PAINTER template
+
 type ButtonOpts = (Button, IORef (ConnectId Button)) -> Action
 type MenuOpts   = MenuItem -> IORef (ConnectId MenuItem) -> Action
 
@@ -2665,12 +2666,12 @@ widgConst c sizes@(n,width) spread = f where
    f (F "stick" [])      = Just $ Path (p0,0,c,-16) 4
                                        [p0,(-4,-8),(0,-150),(4,-8),p0]
    f (F "taichi" s)      = jturtle $ taichi sizes s c
-   f (F "text" ts)       = Just $ textWidget c (n,width) $ showTree False
-                                                         $ mkHidden $ mkTup ts
+   f (F "text" ts)       = Just $ textWidget c (n,width) 
+                                $ showTree False $ drawHidden $ mkTup ts
    f (F "tree" [t])      = Just $ Tree st0B n c $ mapT h ct where
-                               ct = coordTree width spread (20,20) $ mkHidden t
-                               (_,(x,y)) = root ct
-                               h (a,(i,j)) = (a,fromInt2 (i-x,j-y),width a)
+                              ct = coordTree width spread (20,20) $ drawHidden t
+                              (_,(x,y)) = root ct
+                              h (a,(i,j)) = (a,fromInt2 (i-x,j-y),width a)
    f (F "tria" [r])      = do r <- parseReal r; Just $ Tria (st0 c) r
    f (F x [n,d,a]) | z == "wave" = do mode <- search (== mode) pathmodes
                                       n <- parsePnat n; (d,a) <- parseReals d a

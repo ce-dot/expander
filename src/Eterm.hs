@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-
-Module      : Eterm (update from July 1, 2021)
+Module      : Eterm (update from July 20, 2021)
 Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
 Stability   : experimental
@@ -2094,21 +2094,26 @@ gauss3 = f []
 
 data Term a = V a | F a [Term a] | Hidden Special deriving (Read,Show,Eq,Ord)
 
-data Special = Nil | Dissect [(Int,Int,Int,Int)] | EquivMat Sig TriplesI |
+data Special = Nil | Dissect [(Int,Int,Int,Int)] | 
                BoolMat [String] [String] [(String,String)] |
-               TermMat [(String,String,TermS)] |
-               ListMat [String] [String] TriplesS
+               ListMat [String] [String] TriplesS |
+               TermMat [(String,String,TermS)] | EquivMat Sig TriplesI 
 
 instance Read Special where readsPrec _ _ = []
+
 instance Show Special where show _ = ""
-instance Eq Special   where Nil == Nil = True
-                            Dissect s == Dissect s' = s == s'
-                            EquivMat _ s == EquivMat _ s' = s == s'
-                            BoolMat s1 s2 s3 == BoolMat s4 s5 s6
-                                             = s1 == s4 && s2 == s5 && s3 == s6
-                            ListMat s1 s2 s3 == ListMat s4 s5 s6
-                                             = s1 == s4 && s2 == s5 && s3 == s6
-                            _ == _ = False
+
+instance Eq Special
+         where Nil == Nil = True
+               Dissect s == Dissect s' = s == s'
+               BoolMat s1 s2 s3 == BoolMat s4 s5 s6
+                                       = s1 == s4 && s2 == s5 && s3 == s6
+               ListMat s1 s2 s3 == ListMat s4 s5 s6
+                                       = s1 == s4 && s2 == s5 && s3 == s6
+               TermMat trips == TermMat trips'       = trips == trips'
+               EquivMat _ trips == EquivMat _ trips' = trips == trips'
+               _ == _ = False
+               
 instance Ord Special  where _ <= _ = True
 
 type TermS = Term String
@@ -2395,10 +2400,10 @@ trace t p = if isPos x then trace t $ getPos x else p where x = label t p
 
 -- used by dereference,setPointers,collapseCycles,composePtrs
 
-mkHidden :: TermS -> TermS
-mkHidden (F x ts)   = F x $ map mkHidden ts
-mkHidden (Hidden _) = leaf "hidden"
-mkHidden t          = t
+drawHidden :: TermS -> TermS
+drawHidden (F x ts)   = F x $ map drawHidden ts
+drawHidden (Hidden _) = leaf "hidden"
+drawHidden t          = t
 
 -- used by Epaint > widgConst and Ecom > drawThis
 

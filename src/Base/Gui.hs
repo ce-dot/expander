@@ -85,14 +85,13 @@ module Base.Gui
 import Prelude ()
 import Base.OHaskell
 import qualified Base.Haskell as Haskell
-
 import qualified Codec.Picture as Picture
 import Control.DeepSeq
 import qualified Data.Text as Text
 import Graphics.Rendering.Cairo as Cairo hiding (x, y, width, height)
 import Graphics.UI.Gtk hiding
-  (Color, Action, Font, ArrowType, Arrow, Fill, Table,
-   ArrowClass, Image, Star , Circle, Point, Dot, get, set)
+                       (Color, Action, Font, ArrowType, Arrow, Fill, Table,
+                        ArrowClass, Image, Star , Circle, Point, Dot, get, set)
 import qualified Graphics.UI.Gtk as Gtk (get,set,Color(..))
 import Graphics.UI.Gtk.Gdk.PixbufAnimation
 import Graphics.UI.Gtk.General.CssProvider
@@ -118,7 +117,6 @@ iconPixbuf = do
     sty <- stylePath
     pixbufNewFromFile $ sty </> iconFile
 
-
 pixbufRemoveAlpha :: Color -> Pixbuf -> IO ()
 pixbufRemoveAlpha (RGB r g b) pixbuf = do
     hasAlpha <- pixbufGetHasAlpha pixbuf
@@ -140,8 +138,8 @@ pixbufRemoveAlpha (RGB r g b) pixbuf = do
             Haskell.writeArray arr (i-1) (fromIntegral b)
             Haskell.writeArray arr i maxBound
 
-
 -- Canvas
+
 data ImageFileType = PNG | PDF | PS | SVG deriving (Read, Show, Enum, Eq)
 
 data Canvas = Canvas
@@ -168,7 +166,8 @@ data Canvas = Canvas
     , canvasSetCursor      :: CursorType -> Action
     }
 
--- | Canvas GLib attributes.
+-- Canvas GLib attributes
+
 canvasSize :: Attr Canvas Pos
 canvasSize = newNamedAttr "size" canvasGetSize canvasSetSize
 
@@ -345,24 +344,24 @@ canvas = do
                   (width, height) = fromInt2 dim
 
         canvasText' :: Pos -> TextOpt -> String -> Action
-        canvasText' (x, y) (TextOpt fnt align anchor col) str = do
+        canvasText' (x,y) (TextOpt fnt align anchor col) str = do
             surface <- readIORef surfaceRef
             renderWith surface $ do
                 save
                 setColor col
                 layout <- createLayout str
                 liftIO $ layoutSetFontDescription layout fnt
-                liftIO $ layoutSetAlignment layout $ case align of
-                    LeftAlign   -> AlignLeft
-                    CenterAlign -> AlignCenter
-                    RightAlign  -> AlignRight
-                (PangoRectangle xBearing yBearing width height,_) <- liftIO
-                                            $ layoutGetExtents layout
+                liftIO $ layoutSetAlignment layout
+                       $ case align of LeftAlign   -> AlignLeft
+                                       CenterAlign -> AlignCenter
+                                       RightAlign  -> AlignRight
+                (PangoRectangle xBearing yBearing width height,_)
+                                             <- liftIO $ layoutGetExtents layout
                 let baseX = fromIntegral x - xBearing
-                    baseY = fromIntegral y - yBearing
-                    (x', y') = getAnchorPos baseX baseY width height anchor
+                    baseY = fromIntegral y -- - yBearing
+                    (x',y') = getAnchorPos baseX baseY width height anchor
                 updateLayout layout
-                moveTo x' y'
+                moveTo x' $ baseY-8
                 showLayout layout
                 restore
             widgetQueueDraw drawingArea
@@ -394,9 +393,8 @@ canvas = do
 
         canvasImage' :: Pos -> ImageOpt -> Image -> Action
         canvasImage' pos opt (Image alpha image) = do
-          when (not alpha) $ do
-            rgb <- readIORef backgroundRef
-            pixbufRemoveAlpha rgb image
+          when (not alpha) $ do rgb <- readIORef backgroundRef
+                                pixbufRemoveAlpha rgb image
           surface <- readIORef surfaceRef
           width <- fromIntegral <$> pixbufGetWidth image
           height <- fromIntegral <$> pixbufGetHeight image
@@ -492,28 +490,22 @@ canvas = do
 
         getTextWidth' font str = do
             surface <- readIORef surfaceRef
-
-            widthRef <- newIORef undefined
+            textWidth <- newIORef undefined
             renderWith surface $ do
-                layout <- createLayout str
-                liftIO $ layoutSetFontDescription layout $ Just font
-                (PangoRectangle _ _ width _, _) <- liftIO
-                                $ layoutGetExtents layout
-                liftIO $ writeIORef widthRef width
-            readIORef widthRef
+             layout <- createLayout str
+             liftIO $ layoutSetFontDescription layout $ Just font
+             (PangoRectangle _ _ width _, _) <- liftIO $ layoutGetExtents layout
+             liftIO $ writeIORef textWidth width
+            readIORef textWidth
 
         getTextHeight' font = do
             surface <- readIORef surfaceRef
-
             textHeight <- newIORef undefined
             renderWith surface $ do
-                layout <- createLayout "BASE"
-                liftIO $ layoutSetFontDescription layout $ Just font
-                (PangoRectangle _ _ _ height, _) <- liftIO
-                                $ layoutGetExtents layout
-
-                liftIO
-                    $ writeIORef textHeight (round (height/2), round (height/2))
+                 layout <- createLayout "BASE"
+                 liftIO $ layoutSetFontDescription layout $ Just font
+                 (PangoRectangle _ _ _ ht,_) <- liftIO $ layoutGetExtents layout
+                 liftIO $ writeIORef textHeight (floor $ ht/2,floor $ (ht+ht)/3)
             readIORef textHeight
 
         canvasSetCursor' :: CursorType -> Action
@@ -521,7 +513,6 @@ canvas = do
             cursor <- cursorNew ct
             root <- widgetGetRootWindow drawingArea
             drawWindowSetCursor root $ Just cursor
-
 
       in Canvas
         { canvasOval          = canvasOval'
@@ -544,7 +535,6 @@ canvas = do
         , canvasSetCursor     = canvasSetCursor'
         }
 
-
 -- CSS
 loadCSS :: IO ()
 loadCSS = do
@@ -565,7 +555,7 @@ loadGlade glade = do
     builderAddFromFile builder file
     return builder
 
--- | Sets background of a GTK+ widget.
+-- sets background of a GTK+ widget
 setBackground :: WidgetClass widget => widget -> Background -> Action
 setBackground w (Background name) = do
     sc <- widgetGetStyleContext w
@@ -574,14 +564,15 @@ setBackground w (Background name) = do
         $ \cl -> when ("bg_" `Haskell.isPrefixOf` cl) $ styleContextRemoveClass sc cl
     styleContextAddClass sc name
 
--- | Adds a CSS class to a GTK+ widget.
+-- adds a CSS class to a GTK+ widget
 addContextClass :: WidgetClass widget => widget -> String -> Action
 addContextClass widget cl = do
     context <- widgetGetStyleContext widget
     styleContextAddClass context cl
+
 -- Colors
 
-data Color = RGB Int Int Int deriving (Eq, Read)
+data Color = RGB Int Int Int deriving (Read,Eq)
 
 black, white, red, green, blue, yellow, grey, magenta, cyan, orange, brown
     , darkGreen :: Color
@@ -615,7 +606,7 @@ gtkSet = Gtk.set
 
 -- Auxiliary types for options
 
-data None                  = None
+data None             = None
 data AnchorType       = NW | N | NE | W | C | E | SW | S | SE
 data ReliefType       = Raised | Sunken | Flat | Ridge | Solid | Groove
 data VertSide         = Top | Bottom
@@ -623,12 +614,12 @@ data WrapType         = NoWrap | CharWrap | WordWrap
 data SelectType       = Single | Multiple
 data Align            = LeftAlign | CenterAlign | RightAlign
 data Round            = Round
-data ArcStyleType     = Pie | Chord | Perimeter deriving (Eq, Read)
+data ArcStyleType     = Pie | Chord | Perimeter deriving (Read,Eq)
 data CapStyleType     = Butt | Proj
 data JoinStyleType    = Bevel | Miter
 data ArrowType        = First | Last | Both deriving (Show, Eq, Enum)
 data Rotation         = Counterclockwise | RotateUpsidedown | RotateClockwise
-  deriving (Show, Eq, Enum)
+                        deriving (Show, Eq, Enum)
 
 -- Options
 

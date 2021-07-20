@@ -62,11 +62,11 @@ seed = 17489
 
 nextRand :: Integral a => a -> a
 nextRand n = if tmp<0 then m+tmp else tmp
-           where tmp = a*(n `mod` q) - r*(n `div` q)
-                 a = 16807        -- = 7^5
-                 m = 2147483647   -- = maxBound = 2^31-1
-                 q = 127773       -- = m `div` a
-                 r = 2836         -- = m `mod` a
+             where tmp = a*(n `mod` q) - r*(n `div` q)
+                   a = 16807        -- = 7^5
+                   m = 2147483647   -- = maxBound = 2^31-1
+                   q = 127773       -- = m `div` a
+                   r = 2836         -- = m `mod` a
 
 type RelFun a = a -> a -> Bool
 
@@ -108,9 +108,6 @@ sub2 (x,y) (a,b) = (a-x,b-y)
 
 apply2 :: (t -> t1) -> (t, t) -> (t1, t1)
 apply2 f (x,y) = (f x,f y)
-
---fromDouble :: Fractional a => Double -> a
---fromDouble = realToFrac
 
 fromInt :: Int -> Double
 fromInt = fromIntegral
@@ -1265,7 +1262,7 @@ quoted = do char '"'; x <- many $ sat item (/= '"'); char '"'; return x
 
 date :: Parser String
 date = do day <- digits; char '.'; month <- digits; char '.'; year <- digits
-          return $ ' ':day++'.':month ++'.':year++" " 
+          return $ ' ':day++'.':month ++'.':year++" "
 
 infixChar c = c `elem` "$.;:+-*<=~>/\\^#%&|!"
 
@@ -5548,16 +5545,16 @@ type TermSP = Term (String,Pos)
 
 coordTree :: (String -> Int) -> Pos -> Pos -> TermS -> TermSP
 coordTree w (hor,ver) p = alignLeaves . f p
-   where alignLeaves (F a ts) = F a $ equalGaps w hor $ map alignLeaves ts
-         alignLeaves t        = t
-      -- alignLeaves t replaces the leaves of t such that all horizontal gaps
-      -- between neighbours become equal.
-         f (x,y) (V ('@':_))   = V ("@",(x+nodeWidth w "@",y))
-         f (x,y) (V a)         = V (a,(x+nodeWidth w a,y))
-         f (x,y) (F ('@':_) _) = F ("@",(x+nodeWidth w "@",y)) []
-         f (x,y) (F a [])      = F (a,(x+nodeWidth w a,y)) [] where
-         f (x,y) (F a ts)      = if diff <= 0 then ct'
-                                              else transTree1 (diff`div`2) ct'
+    where alignLeaves (F a ts) = F a $ equalGaps w hor $ map alignLeaves ts
+          alignLeaves t        = t
+       -- alignLeaves t replaces the leaves of t such that all horizontal gaps
+       -- between neighbours become equal.
+          f (x,y) (V ('@':_))   = V ("@",(x+nodeWidth w "@",y))
+          f (x,y) (V a)         = V (a,(x+nodeWidth w a,y))
+          f (x,y) (F ('@':_) _) = F ("@",(x+nodeWidth w "@",y)) []
+          f (x,y) (F a [])      = F (a,(x+nodeWidth w a,y)) [] where
+          f (x,y) (F a ts)      = if diff <= 0 then ct'
+                                               else transTree1 (diff`div`2) ct'
                   where diff = nodeWidth w a-foldT h ct+x
                         ct:cts = map (f (x,y+ver)) ts
                         cts' = transTrees w hor ct cts
@@ -5596,41 +5593,34 @@ equalGaps w hor ts = if length ts > 2 then us++vs else ts
 transLeaves :: (String -> Int) -> Int -> [TermSP] -> TermSP -> [TermSP]
 transLeaves w hor ts t = loop hor
          where loop hor = if x1+w1+hor >= x2-w2 then us else loop $ hor+1 
-                    where us = transTrees w hor (head ts) $ tail ts
-                          [x1,x2] = map (fst . snd . root) [last us,t]
-                          [w1,w2] = map (nodeWidth w . fst . root) [last us,t]
+                      where us = transTrees w hor (head ts) $ tail ts
+                            [x1,x2] = map (fst . snd . root) [last us,t]
+                            [w1,w2] = map (nodeWidth w . fst . root) [last us,t]
 
--- @shrinkTree y ver t@ shrinks @t@ vertically such that ver becomes the
--- distance between a node and its direct sucessors (0,upb). @y@ is the
--- y-coordinate of the root.
+-- shrinkTree y ver t shrinks t vertically such that ver becomes the distance
+-- between a node and its direct sucessors. y is the y-coordinate of the root.
 
-shrinkTree
-    :: Num a
-    => a -- type of y
-    -> a -- type of ver
-    -> Term (b, (c, d)) -- type of t
-    -> Term (b, (c, a))
+shrinkTree :: Num a => a -- type of y
+                    -> a -- type of ver
+                    -> Term (b, (c, d)) -- type of t
+                    -> Term (b, (c, a))
 shrinkTree y _ver (V (a,(x,_)))    = V (a,(x,y))
 shrinkTree y ver (F (a,(x,_)) cts) = F (a,(x,y)) $
                                        map (shrinkTree (y+ver) ver) cts
 
--- | @cTree t ct@ replaces the node entries of @t@ by the coordinates of @ct@.
+-- cTree t ct replaces the node entries of t by the coordinates of ct.
 
-cTree
-    :: Show c
-    => Term a -- type of t
-    -> Term (b, c) -- type of ct
-    -> TermS
+cTree :: Show c => Term a -- type of t
+                -> Term (b, c) -- type of ct
+                -> TermS
 cTree (F _ ts) (F (_,p) cts) = F (show p) $ zipWith cTree ts cts
 cTree (V _) (V (_,p))        = V $ show p
 cTree _     (F (_,p) _)      = mkConst p
 
-{-|
-    @getSubtree ct x y@ returns the pair @(ct',p)@ consisting of the subtree
-    @ct'@ of @ct@ close to position @(x,y)@ and the tree position @p@ of @ct'@
-    within @ct@. @getSubtree@ performs breadthfirst search and binary search at
-    each tree level.
--}
+-- getSubtree ct x y returns the pair (ct',p) consisting of the subtree ct'
+-- of ct close to position (x,y) and the tree position p of ct' within ct. 
+-- getSubtree performs breadthfirst search and binary search at each tree level.
+
 getSubtree
     :: TermSP -- type of ct
     -> Int -- type of x
@@ -5643,24 +5633,23 @@ getSubtrees
     -> Int
     -> Int
     -> Maybe ([Int], TermSP)
-getSubtrees pcts@((_,ct):_) x y = if abs (y-y') < 10 then getSubtreeX pcts x
-                                  else let f (p,ct) = zipWithSucs (,) p $
-                                                                    subterms ct
-                                       in getSubtrees (concatMap f pcts) x y
-                                  where (_,(_,y')) = root ct
-getSubtrees _ _ _               = Nothing
+getSubtrees pcts@((_,ct):_) x y 
+            | abs (y-y') < 10 = getSubtreeX pcts x
+            | True            = getSubtrees (concatMap f pcts) x y
+                                where (_,(_,y')) = root ct
+                                      f (p,ct) = zipWithSucs (,) p $ subterms ct
+getSubtrees _ _ _             = Nothing
 
 getSubtreeX :: [(a, TermSP)] -> Int -> Maybe (a, TermSP)
 getSubtreeX [] _   = Nothing
 getSubtreeX pcts x | abs (x - x') < 10 = Just pct
                    | x < x'            = getSubtreeX (take middle pcts) x
-                   | True              = getSubtreeX (drop (middle + 1) pcts) x
+                   | True              = getSubtreeX (drop (middle+1) pcts) x
                                          where middle = length pcts`div`2
                                                pct@(_,ct) = pcts!!middle
                                                (_,(x',_)) = root ct
-                                               
 
--- * Types and functions for the ENUMERATOR template (see Ecom)
+-- Types and functions for the ENUMERATOR template (see Ecom)
 
 data Align_ a = Compl a a (Align_ a) | Equal_ [a] (Align_ a) | 
                 Ins [a] (Align_ a) | Del [a] (Align_ a) | End [a] 

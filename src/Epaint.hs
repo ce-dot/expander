@@ -22,18 +22,17 @@ import Data.Array
 
 infixr 5 <:>, <++>
 
-font12 :: Maybe String
-font12 = Just "font12"
+font16 :: Maybe String
+font16 = Just "font16"
 
 labFont :: IO FontDescription
-labFont = fontDescriptionFromString $ sansSerif ++ " italic 12"
+labFont = fontDescriptionFromString "Sans italic 16"
 
-sansSerif, monospace, defaultButton :: String
-sansSerif = "Sans" -- original Helvetica is not supported by all OS
-monospace = "Monospace" -- original Courier is not supported by all OS
+monospace, defaultButton :: String
+monospace     = "Monospace 18"    -- original Courier is not supported by all OS
 defaultButton = "default_button"
 
--- | SOLVER record
+-- Solver record
 
 data Solver = Solver
     { addSpec         :: Bool -> FilePath -> Action
@@ -560,10 +559,10 @@ painter pheight solveRef solve2Ref = do
           fastBut `gtkSet` [ buttonLabel := if fast then "slow" else "fast" ]
           fastBut `on` buttonActivated $ switchFast
           
-          font <- fontDescriptionFromString $ sansSerif ++ " italic 12"
+          font <- fontDescriptionFromString "Sans italic 16"
           widgetOverrideFont lab $ Just font
           
-          font <- fontDescriptionFromString $ monospace ++ " 14"
+          font <- fontDescriptionFromString monospace
           widgetOverrideFont modeEnt $ Just font
           
           -- Differs from O'Haskell/Tcl.
@@ -626,7 +625,7 @@ painter pheight solveRef solve2Ref = do
             resetScaleBut <- getButton "resetScaleBut"
             resetScaleBut `on` buttonActivated $ resetScale
             
-            font <- fontDescriptionFromString $ monospace ++ " 14"
+            font <- fontDescriptionFromString monospace
             widgetOverrideFont saveEnt $ Just font
             
             saveDBut `on` buttonActivated $ saveGraphD
@@ -645,7 +644,7 @@ painter pheight solveRef solve2Ref = do
             solBut `gtkSet` [ buttonLabel := "show in "++ solveName2 ]
             solBut `on` buttonActivated $ showInSolver
             widgetOverrideFont spaceEnt
-                =<< Just <$> fontDescriptionFromString (monospace ++ " 14")
+                =<< Just <$> fontDescriptionFromString monospace
             stopButSignal <- stopBut `on` buttonActivated $ interrupt True
             writeIORef stopButSignalRef stopButSignal
             
@@ -677,7 +676,7 @@ painter pheight solveRef solve2Ref = do
                         Just Button1 -> moveButton 1 p
                         Just Button2 -> moveButton 2 p
                         Just Button3 -> moveButton 3 p
-                        _ -> return ()
+                        _ -> done
                 return False
             drawingArea `on` buttonReleaseEvent $ do
                 n <- fromEnum <$> eventButton
@@ -690,7 +689,7 @@ painter pheight solveRef solve2Ref = do
                     "p" -> mkPlanar
                     "t" -> mkTurtle
                     "u" -> unTurtle
-                    _ -> return ()
+                    _ -> done
                 return False
             
             saveEnt `on` keyPressEvent $ do
@@ -698,7 +697,7 @@ painter pheight solveRef solve2Ref = do
                 lift $ case key of
                     "Up" -> addOrRemove
                     "Down" -> saveGraph
-                    _ -> return ()
+                    _ -> done
                 return False
             
             writeIORef isNewRef False
@@ -797,7 +796,7 @@ painter pheight solveRef solve2Ref = do
             drawTrees n x q lg cts ct nc c $ succsInd p cts
         drawTree _ (V (x,q,_)) _ nc _ _ = do
             drawText (q,nc,0) x
-            return ()
+            done
         
         drawTrees ::
              Int
@@ -820,7 +819,7 @@ painter pheight solveRef solve2Ref = do
                 w = Text_ (pz,0,black,0) n [z] [lgz] 
                 q = round2 $ hullCross (pz,xy) v
                 r = round2 $ hullCross (xy,pz) w
-        drawTrees _ _ _ _ _ _ _ _ _ = return ()
+        drawTrees _ _ _ _ _ _ _ _ _ = done
         
         drawWidget (Arc ((x,y),a,c,i) t r b) = do
             bgcolor <- readIORef bgcolorRef
@@ -831,7 +830,7 @@ painter pheight solveRef solve2Ref = do
                 $ if t == Perimeter
                   then arcOpt'{ arcWidth = r/10, arcFill = Just out}
                   else arcOpt'{arcFill = Just fill}
-            return ()
+            done
         drawWidget (Fast w) = 
             if isPict w then mapM_ drawWidget $ mkPict w else drawWidget w
         drawWidget (Gif pos alpha file hull) = do
@@ -846,7 +845,7 @@ painter pheight solveRef solve2Ref = do
                     $ ovalOpt{ ovalOutline = outColor c i bgcolor
                              , ovalFill = Just $ fillColor c i bgcolor
                              }
-            return ()
+            done
         drawWidget (Path0 c i m ps) = do
             bgcolor <- readIORef bgcolorRef
             let fill = fillColor c i bgcolor
@@ -872,7 +871,7 @@ painter pheight solveRef solve2Ref = do
             where act f opts = mapM_ (flip f opts . map round2) $ splitPath ps
                          -- do flip f opts $ map round2 ps; done
         drawWidget (Repeat w) = drawWidget w
-        drawWidget Skip = return ()
+        drawWidget Skip = done
         drawWidget (Text_ (p,_,c,i) n strs lgs) = zipWithM_ f [0..] strs
             where (_,_,ps) = textblock p n lgs
                   f k = drawText (ps!!k,c,i)
@@ -882,7 +881,7 @@ painter pheight solveRef solve2Ref = do
             where ct' = mapT3 f ct; f (i,j) = rotate p a (i+x,j+y)
         drawWidget w | isWidg w        = drawWidget $ mkWidg w
                      | isPict w        = drawPict $ mkPict w
-        drawWidget _                   = return ()
+        drawWidget _                   = done
         
         getDelay = truncate <$> delaySlider `gtkGet` rangeValue
 
@@ -992,7 +991,7 @@ painter pheight solveRef solve2Ref = do
                             then writeIORef sourceRef widget 
                             else writeIORef targetRef widget
                             drawPict [lightWidg w]
-                        _ -> return ()
+                        _ -> done
                 else
                     case n of                         
                         1 -> do
@@ -1127,7 +1126,7 @@ painter pheight solveRef solve2Ref = do
                                     (Just (n,w)) -> do
                                         writeIORef changedWidgetsRef ([n],[w])
                                         canv `gtkSet` [ canvasCursor := Hand2]
-                                    _ -> return ()             -- move widget
+                                    _ -> done             -- move widget
                     2 -> do
                         rect <- readIORef rectRef
                         rscale <- readIORef rscaleRef
@@ -1361,7 +1360,7 @@ painter pheight solveRef solve2Ref = do
                                       [ rangeValue := fromIntegral n ]
                                 remoteDraw
                                 gtkDelay 100 $ act1 n
-                                return ()
+                                done
                 if null file then labRed' "Enter a file name!"
                 else do
                    if lg < 5 || suffix `notElem` words ".eps .png .gif" then do

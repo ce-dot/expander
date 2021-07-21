@@ -1,5 +1,5 @@
 {-
-Module      : Ecom (update from July 18, 2021)
+Module      : Ecom (update from July 20, 2021)
 Copyright   : (c) Peter Padawitz and Jos Kusiek, 2021
 License     : BSD3
 Stability   : experimental
@@ -170,7 +170,7 @@ linearTerm = concat [do symbol "F"; x <- token quoted
 -- SOLVER messages
 
 start :: String
-start = "Welcome to Expander3 (July 12, 2021)"
+start = "Welcome to Expander3 (July 20, 2021)"
 
 startOther :: String -> String
 startOther solve = "Load and parse a term or formula in " ++ solve ++ "!"
@@ -611,7 +611,7 @@ specfiles3 =
   words "shelves simpl stack STACKimpl STACKimpl2 stream trans0 trans1" ++
   words "trans2 turtles widgets zip"
 
--- the SOLVER template
+-- SOLVER template
 
 solver :: String -> IORef Solver -> Enumerator -> Painter -> Template Solver
 solver this solveRef enum paint = do
@@ -976,13 +976,17 @@ solver this solveRef enum paint = do
           mkBut graphMenu "build iterative equations" $ transformGraph 1
           but <- mkBut graphMenu "connect equations" $ modifyEqs 0
           writeIORef eqsButRef but
-          subMenu <- mkSub graphMenu "Boolean matrix of"
-          kripkeButs2 subMenu ((initCanvas >>) . showMatrix) [0..4]
-          subMenu <- mkSub graphMenu "list matrix of"
-          kripkeButs2 subMenu ((initCanvas >>) . showMatrix) [5..9]
-          subMenu <- mkSub graphMenu "binary relation of"
+          
+          relMenu <- getMenu "relMenu"
+          -- relBut <- win.menuButton [Text "relations", font12]
+          -- relMenu <- relBut.menu []
+          subMenu <- mkSub relMenu "Boolean matrix of"
+          kripkeButs2 subMenu ((initCanvas >>). showMatrix) [0..4]
+          subMenu <- mkSub relMenu "list matrix of"
+          kripkeButs2 subMenu ((initCanvas >>). showMatrix) [5..9]
+          subMenu <- mkSub relMenu "binary relation of"
           kripkeButs2 subMenu showRelation [0..4]
-          subMenu <- mkSub graphMenu "ternary relation of"
+          subMenu <- mkSub relMenu "ternary relation of"
           kripkeButs2 subMenu showRelation [5..9]
           
           treeMenu <- getMenu "treeMenu"
@@ -2746,7 +2750,8 @@ solver this solveRef enum paint = do
             spread <- readIORef spreadRef
             corner <- readIORef cornerRef
             let qs = if showState then [] else treeposs
-                u = mapConsts chgDouble $ cutTree maxHeap (mkHidden t) ps col qs
+                u = mapConsts chgDouble $ cutTree maxHeap (drawHidden t) ps col 
+                                          qs
             sizes@(_,w) <- mkSizes canv font $ nodeLabels u
             writeIORef sizeStateRef sizes
             draw $ coordTree w spread corner u
@@ -2767,10 +2772,9 @@ solver this solveRef enum paint = do
         drawTree (F cx@(_,q) cts) ct nc ac p = do
             drawNode cx nc
             drawTrees cts $ succsInd p cts
-            where drawTrees (ct':cts) (p:ps) = do
-                            drawArc q ct' ac
-                            drawTree ct' ct nc ac p
-                            drawTrees cts ps
+            where drawTrees (ct':cts) (p:ps) = do drawArc q ct' ac
+                                                  drawTree ct' ct nc ac p
+                                                  drawTrees cts ps
                   drawTrees _ _ = done
         drawTree (V cx@(a,q)) ct nc ac p
             | isPos a = drawRef ct ac p q $ getPos a
@@ -2794,18 +2798,16 @@ solver this solveRef enum paint = do
             | p `elem` qs = drawTree ct ct0 nc' ac' p
             | True      = drawTree ct ct0 nc ac p
         drawTree2 (F cx@(_,q) cts) ct nc ac nc' ac' p qs
-            | p `elem` qs = do
-                drawNode cx nc'
-                drawTrees2 q cts nc' ac' nc ac ps
-            | True      = do
-                drawNode cx nc
-                drawTrees2 q cts nc ac nc' ac' ps
-                    where ps = succsInd p cts
-                          drawTrees2 q (ct':cts) nc ac nc' ac' (p:ps) = do
-                                        drawArc q ct' ac
-                                        drawTree2 ct' ct nc ac nc' ac' p qs
-                                        drawTrees2 q cts nc ac nc' ac' ps
-                          drawTrees2 _ _ _ _ _ _ _ = done
+            | p `elem` qs = do drawNode cx nc'
+                               drawTrees2 q cts nc' ac' nc ac ps
+            | True        = do drawNode cx nc
+                               drawTrees2 q cts nc ac nc' ac' ps
+                            where ps = succsInd p cts
+                                  drawTrees2 q (ct':cts) nc ac nc' ac' (p:ps) = 
+                                          do drawArc q ct' ac
+                                             drawTree2 ct' ct nc ac nc' ac' p qs
+                                             drawTrees2 q cts nc ac nc' ac' ps
+                                  drawTrees2 _ _ _ _ _ _ _ = done
                           
         -- used by draw and drawTree3
         

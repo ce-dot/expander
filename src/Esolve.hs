@@ -305,8 +305,7 @@ intModAlg sig = Modal { state'      = searchS sig,
                         njoin       = njoin,
                         prodT       = prodT,
                         divT        = divT,
-                        sortT       = sortT
-                      } 
+                        sortT       = sortT } 
     where sts         = indices_ $ states sig
           labs        = indices_ $ labels sig
           ats         = indices_ $ atoms sig
@@ -361,9 +360,9 @@ intModAlg sig = Modal { state'      = searchS sig,
                                           st2 = lookup k row2
                                           f = (states sig!!) . get
 
--- foldPred :: Eq state => Modal state label atom
---                       -> (String -> Maybe [state])
---                       -> (String -> Maybe (BinRel state)) -> TermS -> [state]
+foldPred :: Eq state => Modal state label atom
+                     -> (String -> Maybe [state])
+                     -> (String -> Maybe (BinRel state)) -> TermS -> [state]
 foldPred alg g h t =
       case t of V x | just s             -> get s where s = g x
                 F "true" []              -> topS alg
@@ -378,10 +377,8 @@ foldPred alg g h t =
                 F "$" [F "forall" [r],s] -> forallS alg (evalR r) $ evalP g s
                 F "$" [F "select" [p],r] -> selectS alg p $ evalR r
                 F "trans" [t] | just st  -> trans' alg $ get st
-                                              where st = state' alg t
+                                            where st = state' alg t
                 F "preds" [t] | just st  -> preds' alg $ get st
-                                              where st = state' alg t
-                F "out" [t] | just st    -> out' alg $ get st
                                             where st = state' alg t
                 F "$" [F "transL" [t],u] | just st && just lab
                                          -> transL' alg (get st) $ get lab
@@ -391,19 +388,6 @@ foldPred alg g h t =
                                          -> valueL' alg (get at) $ get lab
                                             where at  = atom' alg t
                                                   lab = label' alg u
-                F "$" [F "outL" [t],u] | just st && just lab
-                                         -> outL' alg (get st) $ get lab
-                                            where st  = state' alg t
-                                                  lab = label' alg u
-                F "$" [F "unfoldD" [t],F "[]" ts] | just st && detAuto alg
-                                         -> unfoldD alg (get st) $ toLabels ts
-                                            where st  = state' alg t
-                F "$" [F "unfoldND" [t],F "[]" ts] | just st
-                                         -> unfoldND alg (get st) $ toLabels ts
-                                            where st  = state' alg t
-                F "$" [F "unfoldNDS" [t],F "[]" ts] | just st
-                                         -> unfoldNDS alg (get st) $ toLabels ts
-                                            where st  = state' alg t
                 F ('m':'u':' ':x) [s]    -> fixpt subset (step x s) $ botS alg
                 F ('n':'u':' ':x) [s]    -> fixpt supset (step x s) $ topS alg
                 t | just at              -> value' alg $ get at
@@ -415,7 +399,6 @@ foldPred alg g h t =
             evalP g = foldPred alg g h
             evalR   = foldRel alg g h
             toStates ts = [get st | st <- map (state' alg) ts]
-            toLabels ts = [get lab | lab <- map (label' alg) ts]
 
 evalPred :: Sig -> TermS -> [Int]
 evalPred sig = foldPred (intModAlg sig) (const Nothing) (const Nothing) .
@@ -423,9 +406,33 @@ evalPred sig = foldPred (intModAlg sig) (const Nothing) (const Nothing) .
 
 -- used by simplifyS "eval/evalG"
 
--- foldRel :: Eq state => Modal state label atom
---                  -> (String -> Maybe [state])
---                  -> (String -> Maybe (BinRel state)) -> TermS -> BinRel state
+foldOut :: Eq state => Modal state label atom -> TermS -> [atom]
+foldOut alg t =
+      case t of F "out" [t] | just st    -> out' alg $ get st
+                                            where st = state' alg t
+                F "$" [F "outL" [t],u] | just st && just lab
+                                         -> outL' alg (get st) $ get lab
+                                            where st  = state' alg t
+                                                  lab = label' alg u 
+                F "$" [F "unfoldD" [t],F "[]" ts] | just st && detAuto alg
+                                         -> unfoldD alg (get st) $ toLabels ts
+                                            where st  = state' alg t
+                F "$" [F "unfoldND" [t],F "[]" ts] | just st
+                                         -> unfoldND alg (get st) $ toLabels ts
+                                            where st  = state' alg t
+                F "$" [F "unfoldNDS" [t],F "[]" ts] | just st
+                                         -> unfoldNDS alg (get st) $ toLabels ts
+                                            where st  = state' alg t 
+      where toLabels ts = [get lab | lab <- map (label' alg) ts]
+
+evalOut :: Sig -> TermS -> [Int]
+evalOut sig = foldOut (intModAlg sig) . simplifyIter sig
+
+-- used by simplifyS "evalO"
+
+foldRel :: Eq state => Modal state label atom
+                    -> (String -> Maybe [state])
+                    -> (String -> Maybe (BinRel state)) -> TermS -> BinRel state
 foldRel alg g h t =
       case t of V x | just r          -> get r where r = h x
                 F "true" []           -> topR alg
@@ -445,7 +452,7 @@ foldRel alg g h t =
                 F "[]" ts             -> getStateRel toStates ts
                 r                     -> satR alg r
        where step x r r' = evalR (upd h x $ Just r') r
-             evalP = foldPred alg g h
+             evalP   = foldPred alg g h
              evalR h = foldRel alg g h
              toStates ts = [get st | st <- map (state' alg) ts]
 
@@ -951,9 +958,9 @@ filterTerms sig p (t:ts) = do ts <- filterTerms sig p ts
 filterTerms _ _ _        = Just []
 
 applyDrawFun :: Sig -> TermS -> TermS -> TermS
-applyDrawFun sig drawFun t = 
-                    if drawFun == leaf "id" then t
-                    else wtree $ simplifyIter sig $ F "$" [drawFun,add1ToPoss t] 
+applyDrawFun sig drawFun t = if drawFun == leaf "id" then t
+                             else wtree $ simplifyIter sig 
+                                        $ F "$" [drawFun,add1ToPoss t] 
      where parser = parse $ singleTerm sig
            wtree (F "$" [F "$" [F "wtree" [m],f],t]) | just m' = g t pt
               where m' = parsePnat m
@@ -1531,16 +1538,16 @@ subsumeConj _ _ _ = Nothing
 -- see: https://fldit-www.cs.uni-dortmund.de/~peter/CTL.pdf, page 133 ff.
 
 bodyAndSub sig lazy app pat k arg =
-              if lazy then Just (u,forL (map f xs) xs)
-                      else do sub <- match sig xs arg' pat; Just (u,sub)
-              where xs = sigVars sig pat
-                    arg' = dropFromPoss [1] arg
-                    f x = apply (F "fun" [pat,mkVar sig x]) arg'
-                    bodyPos = [0,k]
-                    body = getSubterm1 app bodyPos
-                    h = getSubAwayFrom body (bounded sig body) $ frees sig arg'
-                    t = collapseVars sig xs $ renameBound sig h body
-                    u = addChar 't' t $ targets t `minus` markPoss 't' t
+               if lazy then Just (u,forL (map f xs) xs)
+                       else do sub <- match sig xs arg' pat; Just (u,sub)
+               where xs = sigVars sig pat
+                     arg' = dropFromPoss [1] arg
+                     f x = apply (F "fun" [pat,mkVar sig x]) arg'
+                     bodyPos = [0,k]
+                     body = getSubterm1 app bodyPos
+                     h = getSubAwayFrom body (bounded sig body) $ frees sig arg'
+                     t = collapseVars sig xs $ renameBound sig h body
+                     u = addChar 't' t $ targets t `minus` markPoss 't' t
 
 simplifyA sig app@(F "$" [F x [F "~" [pat],body],arg])
    | lambda x && just tsub = Just $ t>>>sub
@@ -1663,7 +1670,7 @@ simplifyS sig (F "parseLR" [s@(F "[]" sts),a@(F "[]" asts),F "[]" input]) =
 
 -- ONE-STEP SIMPLIFICATIONS BY MODAL-FORMULA FOLDING
 
--- evaluate a state set formula phi
+-- evaluate a unary state predicate phi
 
 simplifyS sig (F "eval" [phi])  = jList $ map (states sig!!) $ evalPred sig phi
 
@@ -1677,11 +1684,11 @@ simplifyS sig (F "evalG" [phi]) = Just $ mapT f $ relToGraph pairs trips
                                   | st `elem` map (sts!!) is = "dark green_"++st
                                   | True                     = "red_"++st
 
--- evaluate an atom set formula phi
+-- evaluate an output formula phi
 
-simplifyS sig (F "evalA" [phi])  = jList $ map (atoms sig!!) $ evalPred sig phi
+simplifyS sig (F "evalO" [phi])   = jList $ map (atoms sig!!) $ evalOut sig phi
 
--- evaluate a relation formula rel
+-- evaluate a binary state predicate rel
 
 simplifyS sig (F "evalR" [rel])   = jList $ map g $ evalRelPairs sig f f rel
                                     where f = (states sig!!)
@@ -1696,7 +1703,6 @@ simplifyS sig (F "evalRM" [rel])  = Just $ wmat $ BoolMat dom1 dom2 pairs
                                           pairs = map f $ evalRel sig rel
                                           f (i,j) = (g i,g j)
                                           g = showTerm0 . (states sig!!)
-
 -- evaluate a table formula tab
 
 simplifyS sig (F "evalT" [tab]) = jList $ map f $ evalTab sig tab

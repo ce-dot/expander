@@ -388,13 +388,9 @@ subsetsB
     -> [[a]]
 subsetsB n k = concatMap (subsetsN n) [0..k]
 
--- | @subsetsN n k@ returns all subsets of @[0..n-1]@ with exactly @k@ elements.
+-- subsetsN n k returns all subsets of [0..n-1] with exactly k elements.
 
-subsetsN
-    :: (Enum a, Eq b, Num b, Num a, Ord a)
-    => a
-    -> b
-    -> [[a]]
+subsetsN :: (Enum a,Eq b,Num b,Num a,Ord a) => a -> b -> [[a]]
 subsetsN _ 0 = [[]]
 subsetsN n k = mkSet [insert (<) x xs | xs <- subsetsN n (k-1), 
                                         x <- [0..n-1]`minus`xs]
@@ -4194,13 +4190,14 @@ natToLabel t = mkFun [t] (const Nothing) $ -1
 -- within t with respect to level, prefix, heap or hill order. lab labels the 
 -- nodes of t in accordance with the color function hue 0 col n where n is the
 -- maximum of positions of t and col is the start color.
-levelTerm,preordTerm,heapTerm,hillTerm ::
-                         Color -> (Color -> Int -> b) -> Term a -> (Term b,Int)
+
+levelTerm,preordTerm,heapTerm,hillTerm :: Color -> (Color -> Int -> b) 
+                                                -> Term a -> (Term b,Int)
 
 levelTerm col lab t = un where un@(_,n) = f 0 t
                                f i (F _ ts@(_:_)) = (F (label i) us,maximum ks)
                                         where (us,ks) = unzip $ map (f $ i+1) ts
-                               f i _= (F (label i) [],i+1)
+                               f i _ = (F (label i) [],i+1)
                                label i = lab (hue 0 col n i) i
 
 preordTerm col lab t = un where un@(_,n) = f 0 t

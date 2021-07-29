@@ -423,6 +423,7 @@ foldOut alg t =
                 F "$" [F "unfoldNDS" [t],F "[]" ts] | just st
                                          -> unfoldNDS alg (get st) $ toLabels ts
                                             where st  = state' alg t 
+                _ -> []
       where toLabels ts = [get lab | lab <- map (label' alg) ts]
 
 evalOut :: Sig -> TermS -> [Int]
@@ -486,7 +487,7 @@ foldTab alg t =
                                   -> sortT alg (get lab) $ foldTab alg u
                                      where lab = label' alg t
          t | just st              -> mkTab alg $ get st where st = state' alg t
-         _                        -> []
+         _ -> []
 
 evalTab :: Sig -> TermS -> [(TermS,TermS,TermS)]
 evalTab sig = f . foldTab (intModAlg sig) . simplifyIter sig where
@@ -1637,6 +1638,8 @@ simplifyS sig (F "$" [F "search" [p],F x ts])
 simplifyS sig (F "$" [F "filter" [p],F x ts])
  | collector x && just us = Just $ F x $ get us where us = filterTerms sig p ts
 
+-- strict fold
+
 simplifyS sig (F "$" [F "$" [F "sfold" [f],a],F x []]) | collector x = Just a
 
 simplifyS sig (F "$" [F "$" [F "sfold" [f],a],F x (t:ts)]) | collector x =
@@ -1740,7 +1743,7 @@ simplifyS sig (F "$" [F "traces" st,st']) =
                              g trace = map h trace ++ [leaf $ showTerm0 st']
                              h (i,k) = leaf $ showTerm0 (states sig!!i) ++ '\'':
                                               showTerm0 (labels sig!!k) ++ "\'"
-
+                 
 -- sum of all states a that satisfy with p(a) = True
 
 simplifyS sig (F "sat" [p]) = Just $ mkSum $ satisfying sig p

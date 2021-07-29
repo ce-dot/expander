@@ -1,8 +1,8 @@
 -- simpl
 
 constructs:     a b c
-defuncts: 	plus times iter iterate ^^ `mod` # ## 
-preds:		-> odd P Q R S
+defuncts: 	plus times iter iterate ^^ # ## 
+preds:		-> P Q R S
 fovars:		x' y' z' i j n
 hovars: 	H I P Q R S
 
@@ -12,9 +12,6 @@ axioms:
 & (x > 0 ==> plus(x,y) == plus(x-1,y)+1)
 & times(0,x) == 0
 & times(suc(x),y) == times(x,y)+y
-
-& odd(1)
-& (odd(n) <=== odd(n-1))
 
 & iter == mu I.fun(H,fun(x,x:I(H)$H$x))
 

@@ -27,9 +27,9 @@ axioms:
  & or == foldl(\/)$false
  & and == foldl(/\)$true
 
- & scanD$st == evalA.unfoldD$st     -- deterministic-LTS unfold
- & scanND$st == evalA.unfoldND$st   -- nondeterministic-LTS unfold
- & scanNDS$st == evalA.unfoldNDS$st -- nondeterministic-LTS unfold with silent transitions
+ & scanD$st == evalO.unfoldD$st     -- deterministic-LTS unfold
+ & scanND$st == evalO.unfoldND$st   -- nondeterministic-LTS unfold
+ & scanNDS$st == evalO.unfoldNDS$st -- nondeterministic-LTS unfold with silent transitions
 
  & actL == flip$transL
 

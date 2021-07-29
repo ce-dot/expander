@@ -67,6 +67,8 @@ unfold(osum)[1..4] <+>	--> []
 unfold(osum)[1..5] <+>	--> [final]
 
 sum[1..4] <+> 		--> 10
-sum[1..5]		--> 15
+sum[1..5] <+>		--> 15
+
+traces(esum)(esum)      --> esum-elab-esum <+> esum-olab-osum-olab-esum
 
 

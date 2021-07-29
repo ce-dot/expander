@@ -1,8 +1,9 @@
 -- base
 
-defuncts: even odd init last take drop single concatMap <=<
-fovars:	x y z s s' m n i j k
-hovars:	F G 
+defuncts: init last take drop single concatMap <=<
+preds:    even odd 
+fovars:	  x y z s s' m n i j k
+hovars:	  F G 
 
 axioms:
 

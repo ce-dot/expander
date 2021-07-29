@@ -796,31 +796,21 @@ mkRanges ns n = f ns [] (n,n) where
 -- mkLists(s)(ns) computes the partition of @s@ whose i-th element has ns!!i 
 -- elements.
 
-mkLists :: (Eq b, Num b)
-        => [a] -- type of s
-        -> [b] -- type of ns
-        -> [[a]]
+mkLists :: (Eq b, Num b) => [a] -- type of s
+                         -> [b] -- type of ns
+                         -> [[a]]
 mkLists s = f s [] where f s s' (0:ns)     = s':f s [] ns
                          f (x:s) s' (n:ns) = f s (s'++[x]) ((n-1):ns)
                          f _ _ _           = []
 
-traces :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[a]]
+traces :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[(a,lab)]]
 traces f labs a = h [a] a where
-                  h visited a last = if a == last then [[a]] 
+                  h visited a last = if a == last then [[]] 
                                      else do lab <- labs
                                              b <- f a lab `minus` visited
                                              trace <- h (b:visited) b last
-                                             [a:trace]
+                                             [(a,lab):trace]
 -- used by simplifyS "traces" 
-
-tracesL :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[lab]]
-tracesL f labs a = h [a] a where
-                   h visited a last = if a == last then [[]] 
-                                      else do lab <- labs
-                                              b <- f a lab `minus` visited
-                                              trace <- h (b:visited) b last
-                                              [lab:trace]
--- used by simplifyS "tracesL" 
 
 -- minimal DNFs represented as subsets of {'0','1','#'}^n for some n > 0
 

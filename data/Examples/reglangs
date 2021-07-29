@@ -110,7 +110,7 @@ auto$reg$12 <+>	        -- auto = build Kripke model from regular expression
 auto$reg$13 <+>	 
 auto$reg$14 <+>
 
--- powerAuto of the Kripke model of reg$14 yields:
+-- (deterministic) powerAuto of the Kripke model of reg$14 yields:
 
 traces(3)(2) <+>  --> [3,0,1,2] <+> [3,1,2] 
 tracesL(3)(2)     --> [b,a,b] <+> [b,a,a] <+> [a,b] <+> [a,a] 

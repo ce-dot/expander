@@ -110,5 +110,5 @@ auto$reg$14 <+>
 
 -- (deterministic) powerAuto of the Kripke model of reg$14 yields:
 
-traces(3)(2)  --> [3'b',0'a',1'b',2] <+> [3'b',0'a',1'a',2] <+> 
-              --  [3'a',1'b',2] <+> [3'a',1'a',2]
+traces(3)(2)  --> 3-b-0-a-1-b-2 <+> 3-b-0-a-1-a-2 <+> 
+              --  3-a-1-b-2 <+> 3-a-1-a-2

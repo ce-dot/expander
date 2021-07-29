@@ -1730,23 +1730,16 @@ simplifyS sig (Hidden (EquivMat _ trips)) | trips /= new
                                  = Just $ wmat $ EquivMat sig new
                                    where new = bisimStep trips
 
--- state sequences from st to st'
+-- (state,label)-sequences from st to st'
 
 simplifyS sig (F "$" [F "traces" st,st']) =
-           do i <- searchS sig $ mkTup st
-              j <- searchS sig st'
-              Just $ mkSum $ map (mkList . map (states sig!!)) $ traces f ks i j
-           where ks = indices_ $ labels sig
-                 f i k = transL sig!!i!!k
-
--- label sequences from st to st'
-
-simplifyS sig (F "$" [F "tracesL" st,st']) =
-          do i <- searchS sig $ mkTup st
-             j <- searchS sig st'
-             Just $ mkSum $ map (mkList . map (labels sig!!)) $ tracesL f ks i j
-          where ks = indices_ $ labels sig
-                f i k = transL sig!!i!!k
+                       do i <- searchS sig $ mkTup st; j <- searchS sig st'
+                          Just $ mkSum $ map (mkList . g) $ traces f ks i j
+                       where ks = indices_ $ labels sig
+                             f i k = transL sig!!i!!k
+                             g trace = map h trace ++ [leaf $ showTerm0 st']
+                             h (i,k) = leaf $ showTerm0 (states sig!!i) ++ '\'':
+                                              showTerm0 (labels sig!!k) ++ "\'"
 
 -- sum of all states a that satisfy with p(a) = True
 

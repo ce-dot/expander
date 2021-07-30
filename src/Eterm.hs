@@ -3322,7 +3322,7 @@ iniPreds = words "_ $ <= >= < > >> ~ all any allany disjoint `in` `NOTin`" ++
         -- words "foldr lsec mapG map prodL rsec zipWith"
 
 termBuilders = words "bool filter select gaussI gauss tjoin"
-            -- words "initState runState postflow subsflow"
+               -- ++ "initState runState postflow subsflow"
 
 data Sig = Sig {
            isPred,isCopred,isConstruct,isDefunct,isFovar,

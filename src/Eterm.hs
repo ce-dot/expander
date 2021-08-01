@@ -803,15 +803,16 @@ mkLists s = f s [] where f s s' (0:ns)     = s':f s [] ns
                          f (x:s) s' (n:ns) = f s (s'++[x]) ((n-1):ns)
                          f _ _ _           = []
 
-traces :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[(lab,a)]]
-traces trL labs a last = f [a] a where
-                         f visited a = do lab <- labs
-                                          b <- trL a lab
-                                          let pair = (lab,b)
-                                          if b == last then [[pair]]
-                                          else if b `elem` visited then []
-                                               else do trace <- f (b:visited) b
-                                                       [pair:trace]
+traces :: Eq a => (a -> [a]) -> (a -> lab -> [a]) -> [lab] -> a -> a 
+               -> [[Either a (lab,a)]]
+traces tr trL labs a last = f [a] a where
+                           f visited a = concat [do b <- tr a; g b $ Left b,
+                                                 do lab <- labs; b <- trL a lab
+                                                    g b $ Right (lab,b)]
+                             where g b next | b == last        = [[next]]
+                                            | b `elem` visited = []
+                                            | True = do trace <- f (b:visited) b
+                                                        [next:trace]
 -- used by simplifyS "traces" 
 
 -- minimal DNFs represented as subsets of {'0','1','#'}^n for some n > 0

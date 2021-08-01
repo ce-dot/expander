@@ -1738,13 +1738,16 @@ simplifyS sig (Hidden (EquivMat _ trips)) | trips /= new
 simplifyS sig (F "$" [F "traces" st,st']) =
                          do i <- searchS sig stt
                             j <- searchS sig st'
-                            Just $ mkSum $ map f $ traces trL ks i j
+                            Just $ mkSum $ map f $ traces tr trL ks i j
                          where stt = mkTup st
                                ks = indices_ $ labels sig
+                               tr i = trans sig!!i
                                trL i k = transL sig!!i!!k
                                f trace = leaf $ showTerm0 stt++concatMap g trace
-                               g (k,j) = '-':showTerm0 (labels sig!!k) ++
-                                         '-':showTerm0 (states sig!!j)
+                               g (Left j) = h $ states sig!!j
+                               g (Right (k,j)) = h (labels sig!!k) ++
+                                                 h (states sig!!j)
+                               h t = '-':showTerm0 t
                  
 -- sum of all states a that satisfy with p(a) = True
 

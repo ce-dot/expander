@@ -806,12 +806,12 @@ mkLists s = f s [] where f s s' (0:ns)     = s':f s [] ns
 traces :: Eq a => (a -> [a]) -> (a -> lab -> [a]) -> [lab] -> a -> a 
                -> [[Either a (lab,a)]]
 traces tr trL labs a last = f [a] a where
-                           f visited a = concat [do b <- tr a; g b $ Left b,
-                                                 do lab <- labs; b <- trL a lab
-                                                    g b $ Right (lab,b)]
-                             where g b next | b == last        = [[next]]
-                                            | b `elem` visited = []
-                                            | True = do trace <- f (b:visited) b
+                            f visited a = concat [do b <- tr a; g b $ Left b,
+                                                  do lab <- labs; b <- trL a lab
+                                                     g b $ Right (lab,b)]
+                             where g a next | a == last        = [[next]]
+                                            | a `elem` visited = []
+                                            | True = do trace <- f (a:visited) a
                                                         [next:trace]
 -- used by simplifyS "traces" 
 

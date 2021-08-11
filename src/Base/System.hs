@@ -39,8 +39,9 @@ home = getAppUserDataDirectory "expander"
 -- | Builtin library/example folder.
 builtinLibDir :: IO FilePath
 builtinLibDir = do
-    dataDir <- getDataDir
-    return $ dataDir </> "Examples"
+    -- dataDir <- getDataDir
+    -- return $ dataDir </> "Examples"
+    return "C:\\Users\\chris\\OneDrive\\Desktop\\extern\\ba\\software\\expander\\data\\Examples"
 
 -- | Builtin library/example files.
 builtinLib :: FilePath -> IO FilePath
@@ -136,9 +137,9 @@ html :: String -> String -> [String] -> IO ()
 html dirPath dir files
   | null files  = return ()
   | otherwise = writeFile (dirPath ++ ".html") $
-    "<html>\n<head>\n<title>" ++ dir ++ 
+    "<html>\n<head>\n<title>" ++ dir ++
     "</title>\n<script type"&="text/javascript" ++
-    ">\nvar images = new Array(" ++ '\"':first ++ '\"':concatMap f rest ++ 
+    ">\nvar images = new Array(" ++ '\"':first ++ '\"':concatMap f rest ++
     ")\n</script>\n<script type"&="text/javascript" ++ " src"&="Painter.js" ++
     ">\n</script>\n</head>\n<body style"&="background-color: rgb(221,221,255)"++
     ">\n<input type"&="button" ++

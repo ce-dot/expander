@@ -5963,10 +5963,10 @@ solver this solveRef enum paint = do
           treeposs <- readIORef treepossRef
           drawFun <- readIORef drawFunRef
           spread <- readIORef spreadRef
-          let t = mapConsts chgDouble $ trees!!curr
+          let -- t = mapConsts chgDouble $ trees!!curr
               mkPicts sizes = map (f sizes) treeposs 
               f sizes = eval sizes spread . applyDrawFun sig drawFun
-                                          . closeGraph t
+                                          . closeGraph (trees!!curr)
           font <- readIORef fontRef
           picts <- mapM runT $ mkPicts sizes0
           sizes <- mkSizes canv font $ concatMap (stringsInPict . getPict) picts

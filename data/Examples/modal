@@ -4,7 +4,7 @@ defuncts: procs noProcs rel2fun states atoms labels
           `then` or and scanD scanND scanNDS actL parent sibling << >>
           tjoin <> >< # % tcl descendant ancestor related 
 	  EF AF FE FA AG EG GE GA `EU` `AU` `EW` `AW` `ER` `AR`
-          -- defined in Esolve.hs or imports of modal:
+          -- defined in Esolve.hs or modal importing specifications:
 	  trans transL preds predsL value valueL out outL unfoldD unfoldND
           true false not /\ \/ exists forall / pi1 pi2 valL child inv ; 
 	  sat satR proj njoin * select tsort 
@@ -27,9 +27,9 @@ axioms:
  & or == foldl(\/)$false
  & and == foldl(/\)$true
 
- & scanD$st == evalA.unfoldD$st     -- deterministic-LTS unfold
- & scanND$st == evalA.unfoldND$st   -- nondeterministic-LTS unfold
- & scanNDS$st == evalA.unfoldNDS$st -- nondeterministic-LTS unfold with silent transitions
+ & scanD$st == evalO.unfoldD$st     -- deterministic-LTS unfold
+ & scanND$st == evalO.unfoldND$st   -- nondeterministic-LTS unfold
+ & scanNDS$st == evalO.unfoldNDS$st -- nondeterministic-LTS unfold with silent transitions
 
  & actL == flip$transL
 

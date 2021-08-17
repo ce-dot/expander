@@ -1,8 +1,8 @@
 -- simpl
 
 constructs:     a b c
-defuncts: 	plus times iter iterate ^^ `mod` # ##
-preds:		-> odd P Q R S
+defuncts: 	plus times iter iterate ^^ # ## 
+preds:		-> P Q R S
 fovars:		x' y' z' i j n
 hovars: 	H I P Q R S
 
@@ -12,9 +12,6 @@ axioms:
 & (x > 0 ==> plus(x,y) == plus(x-1,y)+1)
 & times(0,x) == 0
 & times(suc(x),y) == times(x,y)+y
-
-& odd(1)
-& (odd(n) <=== odd(n-1))
 
 & iter == mu I.fun(H,fun(x,x:I(H)$H$x))
 
@@ -27,7 +24,7 @@ axioms:
 & x#y == y
 & x##y == y##x
 
-conjects: -- Positions refer to the entire conjunction!
+conjects:			-- Positions refer to the entire conjunction!
 
   (P&Q ==> P|R)		 		--> True		
 & (P&(Q|R) <==> P&Q|P&R) 		--> True
@@ -103,6 +100,8 @@ terms:
     red_uuu(dark blue_hhhh,		
 	    magenta_uuu(bbbbbbb(light blue_hhhh,light green_xxxx),
 			yellow_xxxx,cyan_ppp,iiiii))
+<+> rrR'rr(widg(a,widg(a,b,c,circ$22),c,circ$22),
+           widg(8,widg$oval(33,4),mat[(a,b),(b,a)]))
 
 -- simplify and paint with widgets
 <+> mapG(fun(F,frameS(5)$F$text$fff'hhhhh'fff))[red,green,blue]
@@ -130,7 +129,6 @@ terms:
       x+2*y+z-2*z'  = 10 &
       x-y-z+3*z'    = 2) 
                       --> gaussI(x = 4.0 & y = 3.0 & z = 1.99997 & z' = 0.99999)
-
 
 -- In the following, positions refer to the entire sum!
 

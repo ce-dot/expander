@@ -11,22 +11,20 @@ axioms:
 -- acceptors
 
 states == [q] & labels == [a,b] & atoms == [final] &
+		
 {-
 (q,a) -> qa     & (q,b) -> qb	& 		
 (qa,a) -> q     & (qa,b) -> qab	&
 (qb,a) -> qab   & (qb,b) -> q	&
 (qab,a) -> qb   & (qab,b) -> qa & 
--}
-(q,a) -> q      & (q,b) -> q1	& 		
-(q1,a) -> q2    & (q1,b) -> q1	& 		
-(q2,a) -> q1    & (q2,b) -> q1	& 		
-{-
 final -> q &	-- A1 acceptor of words with an even number of a's and an even 
 		-- number of b's if started in q
-
 final -> qb &   -- A2: acceptor of words with an even number of a's and an odd 
-		-- number of b's if started in q
--}
+		-- number of b's if started in q -}
+
+(q,a) -> q      & (q,b) -> q1	& 		
+(q1,a) -> q2    & (q1,b) -> q1	& 		
+(q2,a) -> q1    & (q2,b) -> q1	& 
 final -> q1 &   -- A3: acceptor of reg$11
 
 (Unfold(st)[]    <=== final -> st) &		
@@ -66,7 +64,7 @@ reg$10 == star(a)+star(a)*b*star(c*star(a)*b)*c*star(a) &
 
 reg$11 == star(a)*b*star(a*(a+b)+b) &
 
-reg$12 == star(a+b*c) & 			    -- RE1
+reg$12 == star(a+b*c) & 		            -- reglangsRE1.html
 
 reg$13 == star(a)*b+a*star(b) & 
 
@@ -86,7 +84,7 @@ Unfold(q)[] &			--> False	-- unify & narrow
 Unfold(q)[b] &			--> True	-- derive & simplify & refute
 Unfold(q)[b,b] &		--> True
 Unfold(q)[a,b,a,a,b,a] &	--> False
-Unfold(q)[a,b,a,b,a,b,a] &	--> True	-- reglangs1
+Unfold(q)[a,b,a,b,a,b,a] &	--> True	-- reglangs1P
 Unfold(q)[a,b,a,a,b,a,b] &	--> True
 Unfold(q)[a,b,a,b,b,a,b,a] 	--> False
 
@@ -110,7 +108,7 @@ auto$reg$12 <+>	        -- auto = build Kripke model from regular expression
 auto$reg$13 <+>	 
 auto$reg$14 <+>
 
--- powerAuto of reg$14 yields:
+-- (deterministic) powerAuto of the Kripke model of reg$14 yields:
 
-traces(3)(2) <+>  --> [3,0,1,2] <+> [3,1,2] 
-tracesL(3)(2)     --> [b,a,b] <+> [b,a,a] <+> [a,b] <+> [a,a] 
+traces(3)(2)  --> 3-b-0-a-1-b-2 <+> 3-b-0-a-1-a-2 <+> 
+              --  3-a-1-b-2 <+> 3-a-1-a-2

@@ -1,10 +1,14 @@
 -- base
 
 defuncts: init last take drop single concatMap <=<
-fovars:	x y z s s' m n i j k
-hovars:	F G 
+preds:    even odd 
+fovars:	  x y z s s' m n i j k
+hovars:	  F G 
 
 axioms:
+
+(even(n) <==> n`mod`2 = 0) &
+(odd(n) <==> n`mod`2 = 1) &
 
 [x]++s == x:s &
 []++s == s &

@@ -796,24 +796,31 @@ mkRanges ns n = f ns [] (n,n) where
 -- mkLists(s)(ns) computes the partition of @s@ whose i-th element has ns!!i 
 -- elements.
 
-mkLists :: (Eq b, Num b) => [a] -- type of s
-                         -> [b] -- type of ns
-                         -> [[a]]
+mkLists :: (Eq b, Num b)
+        => [a] -- type of s
+        -> [b] -- type of ns
+        -> [[a]]
 mkLists s = f s [] where f s s' (0:ns)     = s':f s [] ns
                          f (x:s) s' (n:ns) = f s (s'++[x]) ((n-1):ns)
                          f _ _ _           = []
 
-traces :: Eq a => (a -> [a]) -> (a -> lab -> [a]) -> [lab] -> a -> a 
-               -> [[Either a (lab,a)]]
-traces tr trL labs a last = f [a] a where
-                            f visited a = concat [do b <- tr a; g b $ Left b,
-                                                  do lab <- labs; b <- trL a lab
-                                                     g b $ Right (lab,b)]
-                             where g a next | a == last        = [[next]]
-                                            | a `elem` visited = []
-                                            | True = do trace <- f (a:visited) a
-                                                        [next:trace]
+traces :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[a]]
+traces f labs a = h [a] a where
+                  h visited a last = if a == last then [[a]] 
+                                     else do lab <- labs
+                                             b <- f a lab `minus` visited
+                                             trace <- h (b:visited) b last
+                                             [a:trace]
 -- used by simplifyS "traces" 
+
+tracesL :: Eq a => (a -> lab -> [a]) -> [lab] -> a -> a -> [[lab]]
+tracesL f labs a = h [a] a where
+                   h visited a last = if a == last then [[]] 
+                                      else do lab <- labs
+                                              b <- f a lab `minus` visited
+                                              trace <- h (b:visited) b last
+                                              [lab:trace]
+-- used by simplifyS "tracesL" 
 
 -- minimal DNFs represented as subsets of {'0','1','#'}^n for some n > 0
 
@@ -1075,7 +1082,7 @@ lift' = maybeT . return
 -- parser monad
 
 newtype Parser a = P (Haskell.StateT String Maybe a)
-   deriving (Functor, Applicative, Monad, Haskell.Alternative, MonadPlus, Haskell.MonadFail)
+   deriving (Functor, Applicative, Monad, Haskell.Alternative, MonadPlus)
 
 applyPa :: Parser a -> String -> Maybe (a,String)
 applyPa (P f) = Haskell.runStateT f
@@ -3323,7 +3330,7 @@ iniPreds = words "_ $ <= >= < > >> ~ all any allany disjoint `in` `NOTin`" ++
         -- words "foldr lsec mapG map prodL rsec zipWith"
 
 termBuilders = words "bool filter select gaussI gauss tjoin"
-               -- ++ "initState runState postflow subsflow"
+            -- words "initState runState postflow subsflow"
 
 data Sig = Sig {
            isPred,isCopred,isConstruct,isDefunct,isFovar,
